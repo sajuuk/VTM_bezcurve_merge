@@ -4379,10 +4379,10 @@ void EncCu::addGpmCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& l
     const int gpmIndex = MergeItem::getGpmUnfiedIndex(splitDir, mergeIdxPair);
 
     MergeItem* mergeItem = m_mergeItemList.allocateNewMergeItem();
-    mergeItem->importMergeInfo(mergeCtx, gpmIndex, MergeItem::MergeItemType::GPM, *pu);
+    mergeItem->importMergeInfo(mergeCtx, gpmIndex, MergeItem::MergeItemType::GPM, *pu);//将pu内块的运动信息存储，之后的merge模式会参考
     auto dstBuf = mergeItem->getPredBuf(localUnitArea);
     generateMergePrediction(localUnitArea, mergeItem, *pu, true, false, dstBuf, false, false,
-      geoBuffer[mergeIdxPair[0]], geoBuffer[mergeIdxPair[1]]);
+      geoBuffer[mergeIdxPair[0]], geoBuffer[mergeIdxPair[1]]);//计算GPM的残差，内部有weightedGeoBlk函数，函数会完成差值等一系列操作
     mergeItem->cost = calcLumaCost4MergePrediction(ctxStart, dstBuf, sqrtLambdaForFirstPass, *pu, distParamSAD2);
     m_mergeItemList.insertMergeItemToList(mergeItem);
   }
@@ -4523,7 +4523,7 @@ bool EncCu::prepareGpmComboList(const MergeCtx& mergeCtx, const UnitArea& localU
         geoTempBuf[mergeCand]->Y().stride, sadMask, maskStride, stepX, maskStride2,
         pu->cs->sps->getBitDepth(ChannelType::LUMA), COMPONENT_Y);
       const Distortion sadLarge = distParam.distFunc(distParam);
-      const Distortion sadSmall = sadWholeBlk[mergeCand] - sadLarge;
+      const Distortion sadSmall = sadWholeBlk[mergeCand] - sadLarge;//？？？？？？？？？bug？
 
       const int bitsCand = mergeCand + 1;
 

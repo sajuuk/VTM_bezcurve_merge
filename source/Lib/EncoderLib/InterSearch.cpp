@@ -10886,7 +10886,7 @@ void InterSearch::encodeResAndCalcRdInterCU(CodingStructure &cs, Partitioner &pa
   // all decisions now made. Fully encode the CU, including the headers:
   m_CABACEstimator->getCtx() = ctxStart;
 
-  uint64_t finalFracBits = xGetSymbolFracBitsInter( cs, partitioner );
+  uint64_t finalFracBits = xGetSymbolFracBitsInter( cs, partitioner );//计算模式flag和残差的码流大小
   // we've now encoded the CU, and so have a valid bit cost
   if (!cu.rootCbf)
   {
@@ -10980,7 +10980,7 @@ void InterSearch::encodeResAndCalcRdInterCU(CodingStructure &cs, Partitioner &pa
 
   cs.dist     = finalDistortion;
   cs.fracBits = finalFracBits;
-  cs.cost     = m_pcRdCost->calcRdCost(cs.fracBits, cs.dist);
+  cs.cost     = m_pcRdCost->calcRdCost(cs.fracBits, cs.dist);//CU率失真代价计算
   if (cs.slice->getSPS()->getUseColorTrans())
   {
     if (cs.cost < cs.tmpColorSpaceCost)
