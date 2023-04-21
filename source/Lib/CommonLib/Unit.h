@@ -317,6 +317,9 @@ struct CodingUnit : public UnitArea
   AffineModel    affineType;
   bool           colorTransform;
   bool           geoFlag;
+#if BEZ_CURVE
+  bool           bezFlag;
+#endif
   BdpcmMode      bdpcmMode;
   BdpcmMode      bdpcmModeChroma;
   uint8_t        imv;
@@ -397,6 +400,13 @@ struct InterPredictionData
   uint8_t geoSplitDir;
 
   MergeIdxPair geoMergeIdx;
+#if BEZ_CURVE
+  MergeIdxPair bezMergeIdx;
+  uint8_t bez3Dis;//3 point bezcurve distance offset
+  uint8_t bez3TopIdx;
+  uint8_t bez3LeftIdx;
+  bool bezFlag;
+#endif
 
   bool    mmvdMergeFlag;
   MmvdIdx mmvdMergeIdx;

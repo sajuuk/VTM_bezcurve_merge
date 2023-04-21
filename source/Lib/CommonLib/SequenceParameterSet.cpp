@@ -266,6 +266,9 @@ SPS::SPS()
   , m_PROF(false)
   , m_ciip(false)
   , m_Geo(false)
+#if BEZ_CURVE
+  , m_Bezcurve(false)
+#endif
   , m_ladfEnabled(false)
   , m_ladfNumIntervals(0)
   , m_ladfQpOffset{ 0 }
@@ -280,6 +283,9 @@ SPS::SPS()
   , m_maxNumAffineMergeCand(AFFINE_MRG_MAX_NUM_CANDS)
   , m_maxNumIBCMergeCand(IBC_MRG_MAX_NUM_CANDS)
   , m_maxNumGeoCand(0)
+#if BEZ_CURVE
+  , m_maxNumBezcurveCand(0)
+#endif
   , m_scalingMatrixAlternativeColourSpaceDisabledFlag(false)
   , m_scalingMatrixDesignatedColourSpaceFlag(true)
   , m_disableScalingMatrixForLfnstBlks(true)

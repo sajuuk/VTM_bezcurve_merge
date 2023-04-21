@@ -293,6 +293,9 @@ CodingUnit& CodingUnit::operator=( const CodingUnit& other )
   affineType        = other.affineType;
   colorTransform = other.colorTransform;
   geoFlag           = other.geoFlag;
+#if BEZ_CURVE
+  bezFlag           = other.bezFlag;
+#endif
   bdpcmMode         = other.bdpcmMode;
   bdpcmModeChroma   = other.bdpcmModeChroma;
   qp                = other.qp;
@@ -354,6 +357,9 @@ void CodingUnit::initData()
   affineType        = AffineModel::_4_PARAMS;
   colorTransform = false;
   geoFlag           = false;
+#if BEZ_CURVE
+  bezFlag           = false;
+#endif
   bdpcmMode         = BdpcmMode::NONE;
   bdpcmModeChroma   = BdpcmMode::NONE;
   qp                = 0;
@@ -601,6 +607,13 @@ void PredictionUnit::initData()
     }
   }
   ciipFlag = false;
+#if BEZ_CURVE
+  bez3Dis = MAX_UCHAR;
+  bez3LeftIdx = MAX_UCHAR;
+  bez3TopIdx = MAX_UCHAR;
+  bezFlag = false;
+  bezMergeIdx.fill(MAX_UCHAR);
+#endif
   mmvdEncOptMode = 0;
 }
 
@@ -627,6 +640,13 @@ PredictionUnit& PredictionUnit::operator=(const InterPredictionData& predData)
   bv               = predData.bv;
   bvd              = predData.bvd;
   ciipFlag         = predData.ciipFlag;
+#if BEZ_CURVE
+  bez3Dis          = predData.bez3Dis;
+  bez3LeftIdx      = predData.bez3LeftIdx;
+  bez3TopIdx       = predData.bez3TopIdx;
+  bezFlag          = predData.bezFlag;
+  bezMergeIdx      = predData.bezMergeIdx;
+#endif
 
   for (uint32_t i = 0; i < MAX_NUM_SUBCU_DMVR; i++)
   {
@@ -671,6 +691,13 @@ PredictionUnit& PredictionUnit::operator=( const PredictionUnit& other )
   bv               = other.bv;
   bvd              = other.bvd;
   ciipFlag         = other.ciipFlag;
+#if BEZ_CURVE
+  bez3Dis          = other.bez3Dis;
+  bez3LeftIdx      = other.bez3LeftIdx;
+  bez3TopIdx       = other.bez3TopIdx;
+  bezFlag          = other.bezFlag;
+  bezMergeIdx      = other.bezMergeIdx;
+#endif
 
   for (uint32_t i = 0; i < MAX_NUM_SUBCU_DMVR; i++)
   {

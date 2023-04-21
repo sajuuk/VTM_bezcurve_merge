@@ -418,6 +418,10 @@ void EncApp::xInitLibCfg( int layerIdx )
 
     m_cEncLib.setNoGeoConstraintFlag(m_noGeoConstraintFlag);
     CHECK(m_noGeoConstraintFlag && m_Geo, "GEO shall be deactivated when m_noGeoConstraintFlag is equal to 1");
+  #if BEZ_CURVE
+    m_cEncLib.setNoBezcurveConstraintFlag(m_noBezCurveConstraintFlag);
+    CHECK(m_noBezCurveConstraintFlag && m_Bezcurve, "Bezcurve shall be deactivated when m_noBezCurveConstraintFlag is equal to 1");
+  #endif
 
     m_cEncLib.setNoLadfConstraintFlag(m_noLadfConstraintFlag);
     CHECK(m_noLadfConstraintFlag && m_LadfEnabed, "LADF shall be deactivated when m_bNoLadfConstraintFlag is equal to 1");
@@ -531,6 +535,9 @@ void EncApp::xInitLibCfg( int layerIdx )
     m_cEncLib.setNoIbcConstraintFlag(false);
     m_cEncLib.setNoCiipConstraintFlag(false);
     m_cEncLib.setNoGeoConstraintFlag(false);
+#if BEZ_CURVE
+    m_cEncLib.setNoBezcurveConstraintFlag(false);
+#endif
     m_cEncLib.setNoLadfConstraintFlag(false);
     m_cEncLib.setNoTransformSkipConstraintFlag(false);
     m_cEncLib.setNoBDPCMConstraintFlag(false);
@@ -770,6 +777,9 @@ void EncApp::xInitLibCfg( int layerIdx )
 #endif
   m_cEncLib.setUseCiip                                        ( m_ciip );
   m_cEncLib.setUseGeo                                            ( m_Geo );
+#if BEZ_CURVE
+  m_cEncLib.setUseBezcurve                                       (m_Bezcurve);
+#endif
   m_cEncLib.setUseHashME                                         ( m_HashME );
 
   m_cEncLib.setAllowDisFracMMVD                                  ( m_allowDisFracMMVD );
@@ -829,6 +839,9 @@ void EncApp::xInitLibCfg( int layerIdx )
   m_cEncLib.setMergeRdCandQuotaSubBlk                            ( m_mergeRdCandQuotaSubBlk);
   m_cEncLib.setMergeRdCandQuotaCiip                              ( m_mergeRdCandQuotaCiip );
   m_cEncLib.setMergeRdCandQuotaGpm                               ( m_mergeRdCandQuotaGpm );
+#if BEZ_CURVE
+  m_cEncLib.setMergeRdCandQuotaBez                               ( m_mergeRdCandQuotaBez );
+#endif
 #endif
   m_cEncLib.setUsePbIntraFast                                    ( m_usePbIntraFast );
   m_cEncLib.setUseAMaxBT                                         ( m_useAMaxBT );
@@ -870,6 +883,9 @@ void EncApp::xInitLibCfg( int layerIdx )
   m_cEncLib.setMaxNumMergeCand                                   ( m_maxNumMergeCand );
   m_cEncLib.setMaxNumAffineMergeCand                             ( m_maxNumAffineMergeCand );
   m_cEncLib.setMaxNumGeoCand                                     ( m_maxNumGeoCand );
+#if BEZ_CURVE
+  m_cEncLib.setMaxNumBezcurveCand                                ( m_maxNumBezcurveCand );
+#endif
   m_cEncLib.setMaxNumIBCMergeCand                                ( m_maxNumIBCMergeCand );
 
   //====== Weighted Prediction ========

@@ -66,6 +66,16 @@ const MergeIdxPair EncCu::m_geoModeTest[GEO_MAX_NUM_CANDS] = {
   MergeIdxPair{ 0, 5 }, MergeIdxPair{ 1, 5 }, MergeIdxPair{ 2, 5 }, MergeIdxPair{ 3, 5 }, MergeIdxPair{ 4, 5 },
   MergeIdxPair{ 5, 0 }, MergeIdxPair{ 5, 1 }, MergeIdxPair{ 5, 2 }, MergeIdxPair{ 5, 3 }, MergeIdxPair{ 5, 4 }
 };
+#if BEZ_CURVE
+const MergeIdxPair EncCu::m_bezModeTest[BEZ_MAX_NUM_CANDS] = {
+  MergeIdxPair{ 0, 1 }, MergeIdxPair{ 1, 0 }, MergeIdxPair{ 0, 2 }, MergeIdxPair{ 1, 2 }, MergeIdxPair{ 2, 0 },
+  MergeIdxPair{ 2, 1 }, MergeIdxPair{ 0, 3 }, MergeIdxPair{ 1, 3 }, MergeIdxPair{ 2, 3 }, MergeIdxPair{ 3, 0 },
+  MergeIdxPair{ 3, 1 }, MergeIdxPair{ 3, 2 }, MergeIdxPair{ 0, 4 }, MergeIdxPair{ 1, 4 }, MergeIdxPair{ 2, 4 },
+  MergeIdxPair{ 3, 4 }, MergeIdxPair{ 4, 0 }, MergeIdxPair{ 4, 1 }, MergeIdxPair{ 4, 2 }, MergeIdxPair{ 4, 3 },
+  MergeIdxPair{ 0, 5 }, MergeIdxPair{ 1, 5 }, MergeIdxPair{ 2, 5 }, MergeIdxPair{ 3, 5 }, MergeIdxPair{ 4, 5 },
+  MergeIdxPair{ 5, 0 }, MergeIdxPair{ 5, 1 }, MergeIdxPair{ 5, 2 }, MergeIdxPair{ 5, 3 }, MergeIdxPair{ 5, 4 }
+};
+#endif
 
 EncCu::EncCu() {}
 
@@ -3419,8 +3429,14 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   tempCS->initStructData(encTestMode.qp);
 
   MergeCtx mergeCtx, gpmMergeCtx;
+#if BEZ_CURVE
+  MergeCtx bezMergeCtx;
+#endif
   AffineMergeCtx affineMergeCtx;
   GeoComboCostList &comboList = m_comboList;
+#if BEZ_CURVE
+  BezComboCostList &bezComboList = m_bezcomboList;
+#endif
   const SPS &sps = *tempCS->sps;
 
 #if GDR_ENABLED
@@ -3451,6 +3467,9 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   PelUnitBufVector<MRG_MAX_NUM_CANDS> mrgPredBufNoCiip(m_pelUnitBufPool);
   PelUnitBufVector<MRG_MAX_NUM_CANDS> mrgPredBufNoMvRefine(m_pelUnitBufPool);
   PelUnitBufVector<MRG_MAX_NUM_CANDS> geoBuffer(m_pelUnitBufPool);
+#if BEZ_CURVE
+  PelUnitBufVector<MRG_MAX_NUM_CANDS> bezBuffer(m_pelUnitBufPool);
+#endif
   static_vector<bool, MRG_MAX_NUM_CANDS> isRegularTestedAsSkip;
   // As CIIP may be reset to regular merge when no residuals, dmvrL0mvd cannot be put into mergeItem
   Mv dmvrL0Mvd[MRG_MAX_NUM_CANDS][MAX_NUM_SUBCU_DMVR];
@@ -3496,6 +3515,20 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
     numMergeSatdCand += toAddGpmCand ? std::min(m_pcEncCfg->getMergeRdCandQuotaGpm(), (int)comboList.list.size()) : 0;
   }
 
+#if BEZ_CURVE
+  bool toAddBezCand = false;
+  if (sps.getUseBezcurve() && pu->cs->slice->isInterB()
+    && BEZ_MIN_CU_SIZE <= pu->lwidth() && pu->lwidth() <= BEZ_MAX_CU_SIZE && pu->lwidth() < 8 * pu->lheight()
+    && BEZ_MIN_CU_SIZE <= pu->lheight() && pu->lheight() <= BEZ_MAX_CU_SIZE && pu->lheight() < 8 * pu->lwidth() )
+    {
+      pu->mergeFlag = true;
+      pu->regularMergeFlag = false;
+      pu->cu->bezFlag = true;
+      PU::getBezMergeCandidates(*pu,bezMergeCtx);
+      toAddBezCand = prepareBezComboList(bezMergeCtx,localUnitArea,sqrtLambdaForFirstPass,bezComboList,bezBuffer,pu);
+      numMergeSatdCand += toAddBezCand ? std::min(m_pcEncCfg->getMergeRdCandQuotaBez(),(int)comboList.list.size()) : 0;
+    }
+#endif
   numMergeSatdCand = std::min(numMergeSatdCand, m_pcEncCfg->getMaxMergeRdCandNumTotal());
 
   // 1. Pass: get SATD-cost for selected candidates and reduce their count
@@ -3530,6 +3563,12 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   {
     addGpmCandsToPruningList(gpmMergeCtx, localUnitArea, sqrtLambdaForFirstPass, ctxStart, comboList, geoBuffer, distParam, pu);
   }
+#if BEZ_CURVE
+  if (toAddBezCand)
+  {
+    addBezCandsToPruningList(bezMergeCtx,localUnitArea,sqrtLambdaForFirstPass,ctxStart,bezComboList,bezBuffer,distParam,pu);//add
+  }
+#endif
 
   // Try to limit number of candidates using SATD-costs
   const double threshold = m_mergeItemList.getMergeItemInList(0)->cost * MRG_FAST_RATIO;
@@ -3593,6 +3632,13 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
         predBuf1 = geoBuffer[pu->geoMergeIdx[0]];
         predBuf2 = geoBuffer[pu->geoMergeIdx[1]];
       }
+#if BEZ_CURVE
+      else if (mergeItem->mergeItemType == MergeItem::MergeItemType::BEZCURVE)
+      {
+        predBuf1 = bezBuffer[pu->bezMergeIdx[0]];
+        predBuf2 = bezBuffer[pu->bezMergeIdx[1]];
+      }
+#endif
       PelUnitBuf dstPredBuf = tempCS->getPredBuf(*pu);
       if (!resetCiip2Regular && !mergeItem->lumaPredReady && !mergeItem->chromaPredReady)
       {
@@ -3621,7 +3667,11 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
         std::copy_n(dmvrL0Mvd[mergeItem->mergeIdx], numDmvrMvd, pu->mvdL0SubPu);
       }
 
+#if BEZ_CURVE
+      if (!pu->cu->mmvdSkip && !pu->ciipFlag && !pu->cu->affine && !pu->cu->geoFlag  && !pu->cu->bezFlag && noResidualPass != 0)
+#else
       if (!pu->cu->mmvdSkip && !pu->ciipFlag && !pu->cu->affine && !pu->cu->geoFlag && noResidualPass != 0)
+#endif
       {
         CHECK(mergeItem->mergeIdx >= mergeCtx.numValidMergeCand, "out of normal merge");
         isRegularTestedAsSkip[mergeItem->mergeIdx] = true;
@@ -3720,6 +3770,9 @@ void EncCu::xCheckRDCostIBCModeMerge2Nx2N(CodingStructure *&tempCS, CodingStruct
     pu.mmvdMergeFlag = false;
     pu.regularMergeFlag = false;
     cu.geoFlag = false;
+#if BEZ_CURVE
+    cu.bezFlag = false;
+#endif
     PU::getIBCMergeCandidates(pu, mergeCtx);
 #if GDR_ENABLED
     gdrClean = tempCS->isClean(pu.Y().topRight(), ChannelType::LUMA);
@@ -3775,6 +3828,9 @@ void EncCu::xCheckRDCostIBCModeMerge2Nx2N(CodingStructure *&tempCS, CodingStruct
     cu.qp          = encTestMode.qp;
     cu.mmvdSkip    = false;
     cu.geoFlag     = false;
+#if BEZ_CURVE
+    cu.bezFlag     = false;
+#endif
     DistParam       distParam;
     const bool      bUseHadamard = !cu.slice->getDisableSATDForRD();
     PredictionUnit &pu           = tempCS->addPU(cu, partitioner.chType);   // tempCS->addPU(cu);
@@ -3920,6 +3976,9 @@ void EncCu::xCheckRDCostIBCModeMerge2Nx2N(CodingStructure *&tempCS, CodingStruct
             pu.mmvdMergeFlag = false;
             pu.regularMergeFlag = false;
             cu.geoFlag = false;
+#if BEZ_CURVE
+            cu.bezFlag = false;
+#endif
             mergeCtx.setMergeInfo(pu, mergeCand);
             PU::spanMotionInfo(pu, mergeCtx);
 
@@ -4041,6 +4100,9 @@ PredictionUnit* EncCu::getPuForInterPrediction(CodingStructure* cs)
   pu->cu->skip = false;
   pu->cu->mmvdSkip = false;
   pu->cu->geoFlag = false;
+#if BEZ_CURVE
+  pu->cu->bezFlag = false;
+#endif
   pu->cu->predMode = MODE_INTER;
   pu->cu->chromaQpAdj = m_cuChromaQpOffsetIdxPlus1;
   pu->cu->qp = cs->currQP[ChannelType::LUMA];
@@ -4122,6 +4184,13 @@ void EncCu::generateMergePrediction(const UnitArea& unitArea, MergeItem* mergeIt
     m_pcInterSearch->weightedGeoBlk(pu, pu.geoSplitDir, luma && chroma 
       ? ChannelType::NUM : luma ? ChannelType::LUMA : ChannelType::CHROMA, dstBuf, *predBuf1, *predBuf2);
     break;
+#if BEZ_CURVE
+  case MergeItem::MergeItemType::BEZCURVE:
+    CHECK(predBuf1 == nullptr || predBuf2 == nullptr, "Invalid input buffer to BEZ");
+    m_pcInterSearch->weightedBezBlk(pu, pu.bez3Dis,pu.bez3TopIdx,pu.bez3LeftIdx,luma && chroma 
+      ? ChannelType::NUM : luma ? ChannelType::LUMA : ChannelType::CHROMA,dstBuf, *predBuf1, *predBuf2);
+    break;
+#endif
 
   default:
     THROW("Wrong merge item type");
@@ -4367,6 +4436,44 @@ void EncCu::addAffineCandsToPruningList(AffineMergeCtx& affineMergeCtx, const Un
   }
 }
 
+#if BEZ_CURVE
+template <size_t N>
+void EncCu::addBezCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& localUnitArea, double sqrtLambdaForFirstPass,
+  const TempCtx& ctxStart, const BezComboCostList& comboList, PelUnitBufVector<N>& bezBuffer, DistParam& distParamSAD2, PredictionUnit* pu)
+{
+  const int bezNumMrgSadCand = std::min(BEZ_MAX_TRY_WEIGHTED_SAD, (int)comboList.list.size());
+  for (int candidateIdx = 0; candidateIdx < bezNumMrgSadCand; candidateIdx++)
+  {
+    const int disOffset = comboList.list[candidateIdx].disOffset;
+    const std::pair<int,int> edgeOffst = comboList.list[candidateIdx].edgeOffset;
+    const MergeIdxPair mergeIdxPair = comboList.list[candidateIdx].mergeIdx;
+    const int bezIndx = MergeItem::getBezUnfiedIndex(disOffset,edgeOffst.first,edgeOffst.second,mergeIdxPair);
+
+    MergeItem* mergeItem = m_mergeItemList.allocateNewMergeItem();
+    mergeItem->importMergeInfo(mergeCtx,bezIndx,MergeItem::MergeItemType::BEZCURVE, *pu); 
+    auto dstBuf = mergeItem->getPredBuf(localUnitArea);
+    generateMergePrediction(localUnitArea, mergeItem, *pu, true, false, dstBuf, false, false,
+      bezBuffer[mergeIdxPair[0]], bezBuffer[mergeIdxPair[1]]);
+    mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);
+    m_mergeItemList.insertMergeItemToList(mergeItem);
+
+
+
+
+    // const int splitDir = comboList.list[candidateIdx].splitDir;
+    // const MergeIdxPair mergeIdxPair = comboList.list[candidateIdx].mergeIdx;
+    // const int gpmIndex = MergeItem::getGpmUnfiedIndex(splitDir, mergeIdxPair);
+
+    // MergeItem* mergeItem = m_mergeItemList.allocateNewMergeItem();
+    // mergeItem->importMergeInfo(mergeCtx, gpmIndex, MergeItem::MergeItemType::GPM, *pu);//将pu内块的运动信息存储，之后的merge模式会参考
+    // auto dstBuf = mergeItem->getPredBuf(localUnitArea);
+    // generateMergePrediction(localUnitArea, mergeItem, *pu, true, false, dstBuf, false, false,
+    //   geoBuffer[mergeIdxPair[0]], geoBuffer[mergeIdxPair[1]]);//计算GPM的残差，内部有weightedGeoBlk函数，函数会完成差值等一系列操作
+    // mergeItem->cost = calcLumaCost4MergePrediction(ctxStart, dstBuf, sqrtLambdaForFirstPass, *pu, distParamSAD2);
+    // m_mergeItemList.insertMergeItemToList(mergeItem);
+  }
+}
+#endif
 template <size_t N>
 void EncCu::addGpmCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& localUnitArea, double sqrtLambdaForFirstPass,
   const TempCtx& ctxStart, const GeoComboCostList& comboList, PelUnitBufVector<N>& geoBuffer, DistParam& distParamSAD2, PredictionUnit* pu)
@@ -4564,6 +4671,166 @@ bool EncCu::prepareGpmComboList(const MergeCtx& mergeCtx, const UnitArea& localU
 
       tempCost = tempCost + (double)bitsForPartitionIdx * sqrtLambdaForFirstPass;
       comboList.list.push_back(GeoMergeCombo(splitDir, mergeIdxPair, tempCost));
+    }
+  }
+  if (comboList.list.empty())
+  {
+    return false;
+  }
+  comboList.sortByCost();
+  return true;
+}
+#endif
+#if BEZ_CURVE
+/**
+ * @description: 为3 points 贝塞尔曲线准备所有可能的模式
+ * @return {*}
+ */
+
+// inline int getMaxDiffIdx(Pel* buff,int len)
+// {
+//   int maxDiff=-1;
+//   int idx=-1;
+//   for(int i=0;i<len-1;i++)
+//   {
+//     if(abs(buff[i]-buff[i+1]) > maxDiff)
+//     {
+//       maxDiff = abs(buff[i]-buff[i+1]);
+//       idx=i;
+//     }
+//   }
+//   return idx;
+// }
+template <size_t N>
+bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localUnitArea, double sqrtLambdaForFirstPass,
+  BezComboCostList& comboList,PelUnitBufVector<N>& bezBuffer, PredictionUnit* pu)
+{
+#if GDR_ENABLED
+  CodingStructure &cs = *pu->cs;
+  const bool isEncodeGdrClean = cs.sps->getGDREnabledFlag() && cs.pcv->isEncoder 
+    && ((cs.picture->gdrParam.inGdrInterval && cs.isClean(pu->Y().topRight(), ChannelType::LUMA))
+      || (cs.picture->gdrParam.verBoundary == -1));
+#endif
+
+  const int width = pu->lumaSize().width;
+  const int height = pu->lumaSize().height;
+  // const Position posLT = pu->Y().pos();
+  // int numAboveNeighbor = PU::isAboveAvailable(*pu,posLT,width);
+  // int numLeftNeighbor = PU::isLeftAvailable(*pu,posLT,height);
+  // if(numAboveNeighbor < width || numLeftNeighbor <height ) return false;//无法导出边界点坐标
+  // Pel* recoBuffer = m_bezDiffBuff;
+  // const Pel* srcBuf = cs.picture->getRecoBuf(pu->Y()).buf;
+  // const int srcStride = cs.picture->getRecoBuf(pu->Y()).stride;
+  // const Pel* ptrSrc = srcBuf;
+
+  // ptrSrc = srcBuf - srcStride;//上一行像素
+  // for(int i=0;i<width;i++)
+  // {
+  //   recoBuffer[i] = ptrSrc[i];
+  // }
+  // int topIdx = getMaxDiffIdx(recoBuffer,width);
+  // ptrSrc = srcBuf - 1;//左侧一列像素
+  // for(int i=0;i<height;i++)
+  // {
+  //   recoBuffer[i] = ptrSrc[i*srcStride];
+  // }
+  // int leftIdx = getMaxDiffIdx(recoBuffer,height);
+  // //以上步骤获得边界像素导出结果
+  std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*pu,m_bezDiffBuff);
+  int topIdx = edgeIdx.first;
+  int leftIdx = edgeIdx.second;
+  if(topIdx == -1 && leftIdx == -1) return false;
+
+
+
+  sqrtLambdaForFirstPass /= FRAC_BITS_SCALE;
+  PelUnitBufVector<MRG_MAX_NUM_CANDS> bezTempBuf(m_pelUnitBufPool);
+  const int bitsForPartitionIdx = floorLog2(BEZ_P3_NUM_MODE);
+  uint8_t maxNumMergeCandidates = pu->cs->sps->getMaxNumBezcurveCand();
+  int        pocMrg[BEZ_MAX_NUM_UNI_CANDS];
+  Mv         mergeMv[BEZ_MAX_NUM_UNI_CANDS];
+  bool       isSkipThisCand[BEZ_MAX_NUM_UNI_CANDS];
+
+  for (int i = 0; i < maxNumMergeCandidates; i++)
+  {
+    isSkipThisCand[i] = false;
+  }
+  for (uint8_t mergeCand = 0; mergeCand < maxNumMergeCandidates; mergeCand++)
+  {
+    bezBuffer.push_back(m_pelUnitBufPool.getPelUnitBuf(localUnitArea));
+    mergeCtx.setMergeInfo(*pu, mergeCand);
+
+    const int  listIdx = mergeCtx.mvFieldNeighbours[mergeCand][0].refIdx == -1 ? 1 : 0;
+    const auto refPicList = RefPicList(listIdx);
+    const int  refIdx = mergeCtx.mvFieldNeighbours[mergeCand][listIdx].refIdx;
+
+    pocMrg[mergeCand] = pu->cs->slice->getRefPic(refPicList, refIdx)->getPOC();
+    mergeMv[mergeCand] = mergeCtx.mvFieldNeighbours[mergeCand][listIdx].mv;
+
+    for (int i = 0; i < mergeCand; i++)//去重
+    {
+      if (pocMrg[mergeCand] == pocMrg[i] && mergeMv[mergeCand] == mergeMv[i])
+      {
+        isSkipThisCand[mergeCand] = true;
+        break;
+      }
+    }
+    PU::spanMotionInfo(*pu,mergeCtx);
+    m_pcInterSearch->motionCompensation(*pu,*bezBuffer[mergeCand],REF_PIC_LIST_X);
+  }
+
+  bool allCandsAreSame = true;
+  for (uint8_t mergeCand = 1; mergeCand < maxNumMergeCandidates; mergeCand++)
+  {
+    allCandsAreSame &= isSkipThisCand[mergeCand];
+  }
+  if (allCandsAreSame)
+  {
+    return false;
+  }
+
+  comboList.list.clear();
+  Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
+  const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
+  double k = - 1.0 * leftIdx / topIdx;
+  double theta = atan(k);
+  double posX,posY;
+  double y0 = 1.0 * midPoint.y - k * midPoint.x;
+  double x0 = 1.0 * midPoint.x - midPoint.y / k;
+  if(y0 >= 0)
+  {
+    posX=0;posY=y0;
+  }
+  else
+  {
+    posX=x0;posY=0;
+  }
+  for (int bezMotionIdx = 0; bezMotionIdx < maxNumMergeCandidates * (maxNumMergeCandidates - 1); bezMotionIdx++)
+  {
+    const MergeIdxPair mergeIdxPair = m_bezModeTest[bezMotionIdx];
+
+#if GDR_ENABLED
+    if (isEncodeGdrClean)
+    {
+      if (!mergeCtx.mvSolid[mergeIdxPair[0]][0] || !mergeCtx.mvSolid[mergeIdxPair[0]][1] || !mergeCtx.mvSolid[mergeIdxPair[1]][0]
+        || !mergeCtx.mvSolid[mergeIdxPair[1]][1] || !mergeCtx.mvValid[mergeIdxPair[0]][0] || !mergeCtx.mvValid[mergeIdxPair[0]][1]
+        || !mergeCtx.mvValid[mergeIdxPair[1]][0] || !mergeCtx.mvValid[mergeIdxPair[1]][1])
+      {
+        // don't insert candidate into comboList so we don't have to test for cleanliness later
+        continue;
+      }
+    }
+#endif
+    for (uint8_t dis = 0; dis < BEZ_P3_NUM_DISTANCES; dis++)
+    {
+      double deltaX, deltaY;
+      if(posX < width && posY < height)
+      {
+        comboList.list.push_back(BezMergeCombo(dis,std::make_pair(topIdx,leftIdx),mergeIdxPair,0));
+        posX += step*cos(theta);
+        posY += step*sin(theta);
+      }
+      else break;
     }
   }
   if (comboList.list.empty())
@@ -5820,7 +6087,11 @@ void MergeItem::importMergeInfo(const MergeCtx& mergeCtx, int _mergeIdx, MergeIt
   mergeIdx = _mergeIdx;
   mergeItemType = _mergeItemType;
 
+#if BEZ_CURVE
+  if (mergeItemType != MergeItemType::GPM && mergeItemType != MergeItemType::BEZCURVE)
+#else
   if (mergeItemType != MergeItemType::GPM)
+#endif
   {
     mvField[0][REF_PIC_LIST_0] = mergeCtx.mvFieldNeighbours[mergeIdx][REF_PIC_LIST_0];
     mvField[0][REF_PIC_LIST_1] = mergeCtx.mvFieldNeighbours[mergeIdx][REF_PIC_LIST_1];
@@ -5862,11 +6133,31 @@ void MergeItem::importMergeInfo(const MergeCtx& mergeCtx, int _mergeIdx, MergeIt
     pu.mergeFlag = true;
     pu.cu->affine = false;
     pu.cu->geoFlag = true;
+#if BEZ_CURVE
+    pu.cu->bezFlag = false;
+#endif
     pu.mergeType = MergeType::DEFAULT_N;
     PU::spanMotionInfo(pu, getMvBuf(pu));
     PU::spanGeoMotionInfo(pu, mergeCtx, pu.geoSplitDir, pu.geoMergeIdx);
     getMvBuf(pu).copyFrom(pu.getMotionBuf());
     break;
+#if BEZ_CURVE
+  case MergeItemType::BEZCURVE:
+    mvField[0][REF_PIC_LIST_0].setMvField(Mv(0,0),-1);
+    mvField[0][REF_PIC_LIST_1].setMvField(Mv(0,0),-1);
+    bcwIdx = BCW_DEFAULT;
+    useAltHpelIf = false;
+    MergeItem::updateBezIdx(mergeIdx,pu.bez3Dis,pu.bez3TopIdx,pu.bez3LeftIdx,pu.bezMergeIdx);
+    pu.mergeFlag = true;
+    pu.cu->affine = false;
+    pu.cu->bezFlag = true;
+    pu.cu->geoFlag = false;
+    pu.mergeType = MergeType::DEFAULT_N;
+    PU::spanMotionInfo(pu, getMvBuf(pu));
+    PU::spanBezMotionInfo(pu,mergeCtx,pu.bez3Dis,pu.bez3TopIdx,pu.bez3LeftIdx,pu.bezMergeIdx);
+    getMvBuf(pu).copyFrom(pu.getMotionBuf());
+    break;
+#endif
 
   case MergeItemType::IBC:
   default:
@@ -5926,6 +6217,10 @@ bool MergeItem::exportMergeInfo(PredictionUnit& pu, bool forceNoResidual)
   pu.cu->geoFlag = false;
   pu.cu->mtsFlag = false;
   pu.ciipFlag = false;
+#if BEZ_CURVE
+  pu.cu->bezFlag = false;
+  pu.bezFlag = false;
+#endif
   pu.cu->imv = (!pu.cu->geoFlag && useAltHpelIf) ? IMV_HPEL : 0;
 
   const bool resetCiip2Regular = mergeItemType == MergeItemType::CIIP && forceNoResidual;
@@ -5974,13 +6269,26 @@ bool MergeItem::exportMergeInfo(PredictionUnit& pu, bool forceNoResidual)
     MergeItem::updateGpmIdx(mergeIdx, pu.geoSplitDir, pu.geoMergeIdx);
     pu.cu->imv = 0;
     break;
+#if BEZ_CURVE
+  case MergeItemType::BEZCURVE:
+    pu.mergeIdx = -1;
+    pu.cu->bezFlag = true;
+    pu.cu->bcwIdx = BCW_DEFAULT;
+    pu.bezFlag=true;
+    MergeItem::updateBezIdx(mergeIdx,pu.bez3Dis,pu.bez3TopIdx,pu.bez3LeftIdx,pu.bezMergeIdx);
+    break;
+#endif
 
   case MergeItemType::IBC:
   default:
     THROW("Wrong merge item type");
   }
 
+#if BEZ_CURVE
+  if (mergeItemType == MergeItemType::GPM || mergeItemType == MergeItemType::BEZCURVE)
+#else
   if (mergeItemType == MergeItemType::GPM)
+#endif
   {
     pu.getMotionBuf().copyFrom(getMvBuf(pu));
   }

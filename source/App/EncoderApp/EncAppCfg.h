@@ -178,6 +178,9 @@ protected:
   bool      m_noIbcConstraintFlag;
   bool      m_noCiipConstraintFlag;
   bool      m_noGeoConstraintFlag;
+#if BEZ_CURVE
+  bool      m_noBezCurveConstraintFlag;
+#endif
   bool      m_noLadfConstraintFlag;
   bool      m_noTransformSkipConstraintFlag;
   bool      m_noLumaTransformSize64ConstraintFlag;
@@ -371,6 +374,9 @@ protected:
 
   bool      m_ciip;
   bool      m_Geo;
+#if BEZ_CURVE
+  bool      m_Bezcurve;
+#endif
   bool      m_HashME;
   bool      m_allowDisFracMMVD;
   bool      m_AffineAmvr;
@@ -426,6 +432,9 @@ protected:
   int       m_mergeRdCandQuotaSubBlk;
   int       m_mergeRdCandQuotaCiip;
   int       m_mergeRdCandQuotaGpm;
+#if BEZ_CURVE
+  int       m_mergeRdCandQuotaBez;
+#endif
 #endif
   bool      m_e0023FastEnc;
   bool      m_contentBasedFastQtbt;
@@ -850,6 +859,9 @@ protected:
   uint32_t      m_maxNumMergeCand;                                ///< Max number of merge candidates
   uint32_t      m_maxNumAffineMergeCand;                          ///< Max number of affine merge candidates
   uint32_t      m_maxNumGeoCand;
+#if BEZ_CURVE
+  uint32_t      m_maxNumBezcurveCand;
+#endif
   uint32_t      m_maxNumIBCMergeCand;                             ///< Max number of IBC merge candidates
 
   bool      m_sliceLevelRpl;                                      ///< code reference picture lists in slice headers rather than picture header

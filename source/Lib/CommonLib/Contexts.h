@@ -263,6 +263,9 @@ public:
   static const CtxSet   alfUseApsFlag;
   static const CtxSet   CcAlfFilterControlFlag;
   static const CtxSet   CiipFlag;
+#if BEZ_CURVE
+  static const CtxSet   BezFlag;
+#endif
   static const CtxSet   SmvdFlag;
   static const CtxSet   IBCFlag;
   static const CtxSet   ISPMode;

@@ -93,6 +93,7 @@ endif()
 if( MSVC )
   add_compile_options( "/MP" )
   add_compile_options( "/EHsc" )
+  set(CMAKE_CXX_FLAGS /source-charset:utf-8)
 endif()
 
 # set address sanitizer compiler arguments

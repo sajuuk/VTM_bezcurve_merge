@@ -119,6 +119,9 @@ public:
   void        ref_idx                   ( PredictionUnit&               pu,     RefPicList      eRefList );
   void        mvp_flag                  ( PredictionUnit&               pu,     RefPicList      eRefList );
   void        ciip_flag(PredictionUnit &pu);
+#if BEZ_CURVE
+  void        bez_flag(PredictionUnit &pu);
+#endif
   void        smvd_mode              ( PredictionUnit&               pu );
 
 

@@ -49,6 +49,9 @@
 #if GREEN_METADATA_SEI_ENABLED
 #include <fstream>
 #endif
+#if BEZ_CURVE
+#include <queue>
+#endif
 // CS tools
 
 bool CS::isDualITree( const CodingStructure &cs )
@@ -4326,7 +4329,350 @@ void PU::getGeoMergeCandidates( const PredictionUnit &pu, MergeCtx& geoMrgCtx )
     }
   }
 }
+#if BEZ_CURVE
+std::pair<double,double> PU::getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis,int topIdx,int leftIdx)//计算给定的内部控制点坐标
+{
+  const int height = pu.Y().height;
+  const int width = pu.Y().width;
+  Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
+  const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
+  double k = - 1.0 * leftIdx / topIdx;
+  double theta = atan(k);
+  //double posX,posY;
+  double y0 = 1.0 * midPoint.y - k * midPoint.x;
+  double x0 = 1.0 * midPoint.x - midPoint.y / k;
 
+  double x = x0 + dis * cos(theta);
+  double y = y0 + dis * sin(theta);
+  return std::make_pair(x,y);
+}
+
+void PU::getBezMergeCandidates(const PredictionUnit &pu, MergeCtx &bezMrgCtx)
+{
+  MergeCtx tmpMergeCtx;
+
+  const uint32_t maxNumMergeCand = pu.cs->sps->getMaxNumMergeCand();
+  bezMrgCtx.numValidMergeCand = 0;
+
+#if GDR_ENABLED
+  CodingStructure &cs = *pu.cs;
+  const bool       isEncodeGdrClean =
+    cs.sps->getGDREnabledFlag() && cs.pcv->isEncoder
+    && ((cs.picture->gdrParam.inGdrInterval && cs.isClean(pu.Y().topRight(), ChannelType::LUMA))
+        || (cs.picture->gdrParam.verBoundary == -1));
+#endif
+  for (int32_t i = 0; i < BEZ_MAX_NUM_UNI_CANDS; i++)
+  {
+    bezMrgCtx.bcwIdx[i]                           = BCW_DEFAULT;
+    bezMrgCtx.interDirNeighbours[i]               = 0;
+    bezMrgCtx.mvFieldNeighbours[i][0].refIdx      = NOT_VALID;
+    bezMrgCtx.mvFieldNeighbours[i][1].refIdx      = NOT_VALID;
+    bezMrgCtx.mvFieldNeighbours[i][0].mv          = Mv();
+    bezMrgCtx.mvFieldNeighbours[i][1].mv          = Mv();
+#if GDR_ENABLED
+    if (isEncodeGdrClean)
+    {
+      bezMrgCtx.mvSolid[i][0] = true;
+      bezMrgCtx.mvSolid[i][1] = true;
+    }
+#endif
+    bezMrgCtx.useAltHpelIf[i] = false;
+  }
+
+  PU::getInterMergeCandidates(pu, tmpMergeCtx, 0);
+
+  for (int32_t i = 0; i < maxNumMergeCand; i++)
+  {
+    int parity = i & 1;
+    if( tmpMergeCtx.interDirNeighbours[i] & (0x01 + parity) )
+    {
+      bezMrgCtx.interDirNeighbours[bezMrgCtx.numValidMergeCand] = 1 + parity;
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][!parity].mv = Mv(0, 0);
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][parity].mv = tmpMergeCtx.mvFieldNeighbours[i][parity].mv;
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][!parity].refIdx = -1;
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][parity].refIdx =
+        tmpMergeCtx.mvFieldNeighbours[i][parity].refIdx;
+#if GDR_ENABLED
+      if (isEncodeGdrClean)
+      {
+        Mv         mv         = tmpMergeCtx.mvFieldNeighbours[i][parity].mv;
+        int        refIdx     = tmpMergeCtx.mvFieldNeighbours[i][parity].refIdx;
+        RefPicList refPicList = parity ? REF_PIC_LIST_1 : REF_PIC_LIST_0;
+
+        bezMrgCtx.mvSolid[bezMrgCtx.numValidMergeCand][!parity] = true;
+        bezMrgCtx.mvSolid[bezMrgCtx.numValidMergeCand][parity]  = tmpMergeCtx.mvSolid[i][parity];
+        bezMrgCtx.mvValid[bezMrgCtx.numValidMergeCand][!parity] = true;
+        bezMrgCtx.mvValid[bezMrgCtx.numValidMergeCand][parity] =
+          cs.isClean(pu.Y().bottomRight(), mv, refPicList, refIdx);
+      }
+#endif
+      bezMrgCtx.numValidMergeCand++;
+      if (bezMrgCtx.numValidMergeCand == GEO_MAX_NUM_UNI_CANDS)
+      {
+        return;
+      }
+      continue;
+    }
+
+    if (tmpMergeCtx.interDirNeighbours[i] & (0x02 - parity))
+    {
+      bezMrgCtx.interDirNeighbours[bezMrgCtx.numValidMergeCand] = 2 - parity;
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][!parity].mv =
+        tmpMergeCtx.mvFieldNeighbours[i][!parity].mv;
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][parity].mv = Mv(0, 0);
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][!parity].refIdx =
+        tmpMergeCtx.mvFieldNeighbours[i][!parity].refIdx;
+      bezMrgCtx.mvFieldNeighbours[bezMrgCtx.numValidMergeCand][parity].refIdx = -1;
+#if GDR_ENABLED
+      if (isEncodeGdrClean)
+      {
+        Mv         mv         = tmpMergeCtx.mvFieldNeighbours[i][!parity].mv;
+        int        refIdx     = tmpMergeCtx.mvFieldNeighbours[i][!parity].refIdx;
+        RefPicList refPicList = !parity ? REF_PIC_LIST_1 : REF_PIC_LIST_0;
+
+        bezMrgCtx.mvSolid[bezMrgCtx.numValidMergeCand][!parity] = tmpMergeCtx.mvSolid[i][!parity];
+        bezMrgCtx.mvSolid[bezMrgCtx.numValidMergeCand][parity]  = true;
+        bezMrgCtx.mvValid[bezMrgCtx.numValidMergeCand][!parity] =
+          cs.isClean(pu.Y().bottomRight(), mv, refPicList, refIdx);
+        bezMrgCtx.mvValid[bezMrgCtx.numValidMergeCand][parity] = true;
+      }
+#endif
+      bezMrgCtx.numValidMergeCand++;
+      if (bezMrgCtx.numValidMergeCand == BEZ_MAX_NUM_UNI_CANDS)
+      {
+        return;
+      }
+    }
+  }
+}
+inline int getMaxDiffIdx(Pel* buff,int len)
+{
+  int maxDiff=-1;
+  int idx=-1;
+  for(int i=0;i<len-1;i++)
+  {
+    if(abs(buff[i]-buff[i+1]) > maxDiff)
+    {
+      maxDiff = abs(buff[i]-buff[i+1]);
+      idx=i;
+    }
+  }
+  return idx;
+}
+inline int isAboveAvailable(const PredictionUnit &pu, const Position &posLT,const uint32_t width)
+{
+  const CodingStructure& cs = *pu.cs;
+
+  int       numIntra   = 0;
+
+  for (int dx = 0; dx < width; dx ++)
+  {
+    const Position refPos = posLT.offset(dx, -1);
+
+    if (!cs.isDecomp(refPos, ChannelType::LUMA))
+    {
+      break;
+    }
+
+    const bool valid = (cs.getCURestricted(refPos, *pu.cu, ChannelType::LUMA) != nullptr);
+    numIntra += valid ? 1 : 0;
+  }
+  return numIntra;
+}
+inline int isLeftAvailable(const PredictionUnit &pu, const Position &posLT, const uint32_t height)
+{
+  const CodingStructure& cs = *pu.cs;
+
+  int       numIntra = 0;
+
+  for (int dy = 0; dy < height; dy ++)
+  {
+    const Position refPos = posLT.offset(-1, dy);
+
+    if (!cs.isDecomp(refPos, ChannelType::LUMA))
+    {
+      break;
+    }
+
+    const bool valid = (cs.getCURestricted(refPos,* pu.cu, ChannelType::LUMA) != nullptr);
+    numIntra += valid ? 1 : 0;
+  }
+  return numIntra;
+}
+std::pair<int,int> PU::getBezP3EdgePts(const PredictionUnit &pu,Pel *recoBuffer)
+{
+  CodingStructure &cs = *pu.cs;
+    const int width = pu.lumaSize().width;
+  const int height = pu.lumaSize().height;
+  const Position posLT = pu.Y().pos();
+  int numAboveNeighbor = isAboveAvailable(pu,posLT,width);
+  int numLeftNeighbor = isLeftAvailable(pu,posLT,height);
+  if(numAboveNeighbor < width || numLeftNeighbor <height ) return std::make_pair(-1,-1);//无法导出边界点坐标
+  //Pel* recoBuffer = recoBuffer;
+  const Pel* srcBuf = cs.picture->getRecoBuf(pu.Y()).buf;
+  const long long srcStride = cs.picture->getRecoBuf(pu.Y()).stride;
+  const Pel* ptrSrc = srcBuf;
+
+  ptrSrc = srcBuf - srcStride;//上一行像素
+  for(int i=0;i<width;i++)
+  {
+    recoBuffer[i] = ptrSrc[i];
+  }
+  int topIdx = getMaxDiffIdx(recoBuffer,width);
+  ptrSrc = srcBuf - 1;//左侧一列像素
+  for(int i=0;i<height;i++)
+  {
+    recoBuffer[i] = ptrSrc[i*srcStride];
+  }
+  int leftIdx = getMaxDiffIdx(recoBuffer,height);
+  //以上步骤获得边界像素导出结果
+  return std::make_pair(topIdx,leftIdx);
+}
+std::pair<double,double> PU::calcBezPoint(int degree,const std::vector<std::pair<double,double>> &bezCtrlPts,double t)
+{
+  std::vector<std::pair<double,double>> temp(bezCtrlPts);
+  for(int i=1;i<=degree;i++)//Triangle computation
+  {
+    for(int j=0;j<=degree-i;j++)
+    {
+      temp[j].first = (1.0 - t) * temp[j].first + t * temp[j+1].first;
+      temp[j].second = (1.0 - t) * temp[j].second + t * temp[j+1].second;
+    }
+  }
+  return temp[0];
+}
+void PU::drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double,double>> &bezCtrlPts,uint8_t *bezMask)
+{
+  const int height = pu.Y().height;
+  const int width = pu.Y().width;
+  double totalsteps = 3 * std::max(height,width);
+  memset(bezMask,1,sizeof(uint8_t) * height * width);
+  for(double u=0;u<1.0;u+=1.0/totalsteps)
+  {
+    std::pair<double,double> pt = calcBezPoint(2,bezCtrlPts,u);
+    int x = (int)round(pt.first);
+    int y = (int)round(pt.second);
+    if(x >= 0 && x <width && y>=0 && y < height)
+    {
+      bezMask[y * width + x] = 0;//
+    }
+  }
+  const int delta[4][2] = {{0,1}, {0,-1}, {1,0}, {-1,0}};
+  std::queue<std::pair<int,int>> q;
+  bool found = false;
+  for(int y = 0; y < height; y++)
+  {
+    for(int x = 0; x < width; x++)
+    {
+      if(bezMask[y*width + x]==1)
+      {
+        q.push(std::make_pair(x,y));
+        bezMask[y*width + x]=0;
+        found=true;
+        break;
+      }
+    }
+    if(found) break;
+  }
+  while(!q.empty())
+  {
+    std::pair<int,int> p=q.front();
+    q.pop();
+    int x=p.first;int y=p.second;
+    for(int i=0;i<4;i++)
+    {
+      int nx=x+delta[i][0];
+      int ny=y+delta[i][1];
+      if(nx<0 || nx>=width || ny<0 || ny>=height) continue;
+      if(bezMask[ny*width + nx]==1) 
+      {
+        bezMask[ny*width + nx]=0;
+        q.push(std::make_pair(nx,ny));
+      }
+    }
+  }
+}
+void PU::spanBezMotionInfo(PredictionUnit &pu, const MergeCtx &bezMrgCtx, const uint8_t dis, const uint8_t topIdx,const uint8_t leftIdx,
+                           const MergeIdxPair &candIdx)
+{
+  pu.bez3Dis = dis;
+  pu.bez3TopIdx = topIdx;
+  pu.bez3LeftIdx = leftIdx;
+  MotionBuf mb = pu.getMotionBuf();
+
+  // MotionInfo biMv;
+  // biMv.isInter = true;
+  // biMv.sliceIdx = pu.cs->slice->getIndependentSliceIdx();
+
+  const uint8_t &candIdx0 = candIdx[0];
+  const uint8_t &candIdx1 = candIdx[1];
+
+  uint8_t *bezMask = new uint8_t[MAX_CU_SIZE * MAX_CU_SIZE];
+
+  // //准备双向运动矢量
+  // if( bezMrgCtx.interDirNeighbours[candIdx0] == 1 && bezMrgCtx.interDirNeighbours[candIdx1] == 2)//参考列表一个为前向一个为后向
+  // {
+  //   biMv.interDir  = 3;
+  //   biMv.mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx0][0].mv;
+  //   biMv.mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx1][1].mv;
+  //   biMv.refIdx[0] = bezMrgCtx.mvFieldNeighbours[candIdx0][0].refIdx;
+  //   biMv.refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx1][1].refIdx;
+  // }
+  // else if( bezMrgCtx.interDirNeighbours[candIdx0] == 2 && bezMrgCtx.interDirNeighbours[candIdx1] == 1)
+  // {
+  //   biMv.interDir  = 3;
+  //   biMv.mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx0][0].mv;
+  //   biMv.mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx1][1].mv;
+  //   biMv.refIdx[0] = bezMrgCtx.mvFieldNeighbours[candIdx0][0].refIdx;
+  //   biMv.refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx1][1].refIdx;
+  // }
+  // else if ( bezMrgCtx.interDirNeighbours[candIdx0] == 1 && bezMrgCtx.interDirNeighbours[candIdx1] == 1)//参考列表为同向
+  // {
+  //   biMv.interDir = 1;
+  //   biMv.mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx1][0].mv;
+  //   biMv.mv[1] = Mv(0, 0);
+  //   biMv.refIdx[0] = bezMrgCtx.mvFieldNeighbours[candIdx1][0].refIdx;
+  //   biMv.refIdx[1] = -1;
+  // }
+  // else if ( bezMrgCtx.interDirNeighbours[candIdx0] == 2 && bezMrgCtx.interDirNeighbours[candIdx1] == 2)
+  // {
+  //   biMv.interDir = 2;
+  //   biMv.mv[0] = Mv(0, 0);
+  //   biMv.mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx1][1].mv;
+  //   biMv.refIdx[0] = -1;
+  //   biMv.refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx1][1].refIdx;
+  // }
+  std::pair<double,double> ctrlPt = getBezP3CtrlPt(pu,dis,topIdx,leftIdx);
+  drawBezMask(pu,std::vector<std::pair<double,double>>{std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
+  for(int y=0;y<mb.height;y++)
+  {
+    for(int x=0;x<mb.width;x++)
+    {
+      if(bezMask[y*mb.height + x]==0)
+      {
+        mb.at(x, y).isInter = true;
+        mb.at(x, y).interDir = bezMrgCtx.interDirNeighbours[candIdx0];
+        mb.at(x, y).refIdx[0] = bezMrgCtx.mvFieldNeighbours[candIdx0][0].refIdx;
+        mb.at(x, y).refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx0][1].refIdx;
+        mb.at(x, y).mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx0][0].mv;
+        mb.at(x, y).mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx0][1].mv;
+        mb.at(x, y).sliceIdx = pu.cs->slice->getIndependentSliceIdx();
+      }
+      else
+      {
+        mb.at(x, y).isInter = true;
+        mb.at(x, y).interDir = bezMrgCtx.interDirNeighbours[candIdx1];
+        mb.at(x, y).refIdx[0] = bezMrgCtx.mvFieldNeighbours[candIdx1][0].refIdx;
+        mb.at(x, y).refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx1][1].refIdx;
+        mb.at(x, y).mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx1][0].mv;
+        mb.at(x, y).mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx1][1].mv;
+        mb.at(x, y).sliceIdx = pu.cs->slice->getIndependentSliceIdx();
+      }
+    }
+  }
+  delete[] bezMask;
+}
+#endif
 void PU::spanGeoMotionInfo(PredictionUnit &pu, const MergeCtx &geoMrgCtx, const uint8_t splitDir,
                            const MergeIdxPair &candIdx)
 {

@@ -86,6 +86,9 @@ class ConstraintInfo
   bool              m_noIbcConstraintFlag;
   bool              m_noCiipConstraintFlag;
   bool              m_noGeoConstraintFlag;
+#if BEZ_CURVE
+  bool              m_noBezConstraintFlag;
+#endif
   bool              m_noLadfConstraintFlag;
   bool              m_noTransformSkipConstraintFlag;
   bool              m_noLumaTransformSize64ConstraintFlag;
@@ -162,6 +165,9 @@ public:
     , m_noIbcConstraintFlag(false)
     , m_noCiipConstraintFlag(false)
     , m_noGeoConstraintFlag(false)
+#if BEZ_CURVE
+    , m_noBezConstraintFlag(false)
+#endif
     , m_noLadfConstraintFlag(false)
     , m_noTransformSkipConstraintFlag(false)
     , m_noLumaTransformSize64ConstraintFlag(false)
@@ -304,6 +310,10 @@ public:
   void          setNoCiipConstraintFlag(bool bVal) { m_noCiipConstraintFlag = bVal; }
   bool          getNoGeoConstraintFlag() const { return m_noGeoConstraintFlag; }
   void          setNoGeoConstraintFlag(bool bVal) { m_noGeoConstraintFlag = bVal; }
+#if BEZ_CURVE
+  bool          getNoBezConstraintFlag() const { return m_noBezConstraintFlag; }
+  void          setNoBezConstraintFlag(bool bVal) { m_noBezConstraintFlag = bVal; }
+#endif
   bool          getNoLadfConstraintFlag() const { return m_noLadfConstraintFlag; }
   void          setNoLadfConstraintFlag(bool bVal) { m_noLadfConstraintFlag = bVal; }
   bool          getNoTransformSkipConstraintFlag() const { return m_noTransformSkipConstraintFlag; }

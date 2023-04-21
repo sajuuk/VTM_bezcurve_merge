@@ -2265,13 +2265,24 @@ void CABACReader::merge_data( PredictionUnit& pu )
 
     RExt__DECODER_DEBUG_BIT_STATISTICS_CREATE_SET( STATS__CABAC_BITS__MERGE_FLAG );
 
+#if BEZ_CURVE
+    const bool bezAvailable = pu.cu->cs->slice->getSPS()->getUseBezcurve() && pu.cu->cs->slice->isInterB()
+                              && pu.cs->sps->getMaxNumBezcurveCand() > 1 && pu.cu->lwidth() >= BEZ_MIN_CU_SIZE
+                              && pu.cu->lheight() >= BEZ_MIN_CU_SIZE && pu.cu->lwidth() <= BEZ_MAX_CU_SIZE
+                              && pu.cu->lheight() <= BEZ_MAX_CU_SIZE && pu.cu->lwidth() < 8 * pu.cu->lheight()
+                              && pu.cu->lheight() < 8 * pu.cu->lwidth();
+#endif
     const bool ciipAvailable = pu.cs->sps->getUseCiip() && !pu.cu->skip && pu.cu->lwidth() < MAX_CU_SIZE && pu.cu->lheight() < MAX_CU_SIZE && pu.cu->lwidth() * pu.cu->lheight() >= 64;
     const bool geoAvailable  = pu.cu->cs->slice->getSPS()->getUseGeo() && pu.cu->cs->slice->isInterB()
                               && pu.cs->sps->getMaxNumGeoCand() > 1 && pu.cu->lwidth() >= GEO_MIN_CU_SIZE
                               && pu.cu->lheight() >= GEO_MIN_CU_SIZE && pu.cu->lwidth() <= GEO_MAX_CU_SIZE
                               && pu.cu->lheight() <= GEO_MAX_CU_SIZE && pu.cu->lwidth() < 8 * pu.cu->lheight()
                               && pu.cu->lheight() < 8 * pu.cu->lwidth();
+#if BEZ_CURVE
+    if (geoAvailable || ciipAvailable || geoAvailable)
+#else
     if (geoAvailable || ciipAvailable)
+#endif
     {
       cu.firstPU->regularMergeFlag = m_binDecoder.decodeBin(Ctx::RegularMergeFlag(cu.skip ? 0 : 1));
     }
@@ -2298,6 +2309,38 @@ void CABACReader::merge_data( PredictionUnit& pu )
     {
       pu.mmvdMergeFlag = false;
       pu.cu->mmvdSkip = false;
+#if BEZ_CURVE
+      if ((bezAvailable || geoAvailable) && ciipAvailable)
+      {
+        ciip_flag(pu);
+        if(bezAvailable && geoAvailable)
+        {
+          bez_flag(pu);
+        }
+        else if(bezAvailable)
+        {
+          pu.bezFlag = true;
+        }
+      }
+      else if (ciipAvailable)//bez and geo must be false
+      {
+        pu.ciipFlag = true;
+      }
+      else
+      {
+        pu.ciipFlag = false;
+        if(bezAvailable && geoAvailable)
+        {
+          bez_flag(pu);
+        }
+        else if(bezAvailable)
+        {
+          pu.bezFlag = true;
+        }
+      }
+      // ciip_flag(pu);
+      // bez_flag(pu);
+#else
       if (geoAvailable && ciipAvailable)
       {
         ciip_flag(pu);
@@ -2310,6 +2353,7 @@ void CABACReader::merge_data( PredictionUnit& pu )
       {
         pu.ciipFlag = false;
       }
+#endif
       if (pu.ciipFlag)
       {
         pu.intraDir[ChannelType::LUMA]   = PLANAR_IDX;
@@ -2317,7 +2361,35 @@ void CABACReader::merge_data( PredictionUnit& pu )
       }
       else
       {
+#if BEZ_CURVE
+        // if(geoAvailable && bezAvailable)
+        // {
+        //   bez_flag(pu);
+        //   if(pu.bezFlag)
+        //   {
+        //     pu.cu->bezFlag = true;
+        //   }
+        // }
+        // else if (bezAvailable)
+        // {
+        //   pu.bezFlag = true;
+        //   pu.cu->bezFlag = true;
+        // }
+        // else
+        // {
+        //   pu.cu->geoFlag = true;
+        // }
+        if(pu.bezFlag)
+        {
+          pu.cu->bezFlag = true;
+        }
+        else
+        {
+          pu.cu->geoFlag = true;
+        }
+#else
         pu.cu->geoFlag = true;
+#endif
       }
     }
   }
@@ -2392,6 +2464,39 @@ void CABACReader::merge_idx( PredictionUnit& pu )
       DTRACE(g_trace_ctx, D_SYNTAX, "merge_idx() geo_idx1=%d\n", mergeCand1);
       return;
     }
+#if BEZ_CURVE
+    if (pu.cu->bezFlag)
+    {
+      RExt__DECODER_DEBUG_BIT_STATISTICS_CREATE_SET(STATS__CABAC_BITS__BEZ_INDEX);
+      uint32_t dis = 0;
+      xReadTruncBinCode(dis, BEZ_P3_NUM_DISTANCES);
+      pu.bez3Dis          = dis;
+      const int maxNumBezCand = pu.cs->sps->getMaxNumBezcurveCand();
+      CHECK(maxNumBezCand < 2, "Incorrect max number of bez candidates");
+      CHECK(pu.cu->lheight() > BEZ_MAX_CU_SIZE || pu.cu->lwidth() > BEZ_MAX_CU_SIZE, "Incorrect block size of geo flag");
+      int numCandminus2 = maxNumBezCand - 2;
+      pu.mergeIdx       = 0;
+      uint8_t mergeCand0 = 0;
+      uint8_t mergeCand1 = 0;
+      if (m_binDecoder.decodeBin(Ctx::MergeIdx()))
+      {
+        mergeCand0 += unary_max_eqprob(numCandminus2) + 1;
+      }
+      if (numCandminus2 > 0)
+      {
+        if (m_binDecoder.decodeBin(Ctx::MergeIdx()))
+        {
+          mergeCand1 += unary_max_eqprob(numCandminus2 - 1) + 1;
+        }
+      }
+      mergeCand1 += mergeCand1 >= mergeCand0 ? 1 : 0;
+      pu.bezMergeIdx = { mergeCand0, mergeCand1 };
+      DTRACE(g_trace_ctx, D_SYNTAX, "merge_idx() bez_dis=%d\n", dis);
+      DTRACE(g_trace_ctx, D_SYNTAX, "merge_idx() bez_idx0=%d\n", mergeCand0);
+      DTRACE(g_trace_ctx, D_SYNTAX, "merge_idx() bez_idx1=%d\n", mergeCand1);
+      return;
+    }
+#endif
 
     if (CU::isIBC(*pu.cu))
     {
@@ -2546,6 +2651,25 @@ void CABACReader::ciip_flag(PredictionUnit &pu)
          pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);
 }
 
+void CABACReader::bez_flag(PredictionUnit &pu)
+{
+  if (!pu.cs->sps->getUseBezcurve())
+  {
+    pu.bezFlag = false;
+    return;
+  }
+  if (pu.cu->skip)
+  {
+    pu.bezFlag = false;
+    return;
+  }
+
+  RExt__DECODER_DEBUG_BIT_STATISTICS_CREATE_SET(STATS__CABAC_BITS__BEZ_FLAG);
+
+  pu.bezFlag = (m_binDecoder.decodeBin(Ctx::BezFlag(0)));
+  DTRACE(g_trace_ctx, D_SYNTAX, "ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", pu.bezFlag ? 1 : 0, pu.lumaPos().x,
+         pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);
+}
 //================================================================================
 //  clause 7.3.8.8
 //--------------------------------------------------------------------------------

@@ -198,6 +198,16 @@ namespace PU
   bool isLMCMode                      (                          unsigned mode);
   bool isLMCModeEnabled(const PredictionUnit &pu, unsigned mode);
   void getGeoMergeCandidates          (const PredictionUnit &pu, MergeCtx &GeoMrgCtx);
+#if BEZ_CURVE
+  std::pair<double,double> getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis,int topIdx,int leftIdx);
+  std::pair<double,double> calcBezPoint(int degree,const std::vector<std::pair<double,double>> &bezCtrlPts,double t);//计算特定参数的贝塞尔曲线点坐标
+  void drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double,double>> &bezCtrlPts,uint8_t *bezMask);
+  void getBezMergeCandidates          (const PredictionUnit &pu, MergeCtx &BezMrgCtx);
+  std::pair<int,int>       getBezP3EdgePts(const PredictionUnit &pu,Pel *recoBuffer);
+  void spanBezMotionInfo              (PredictionUnit &pu, const MergeCtx &bezMrgCtx, const uint8_t dis, const uint8_t topIdx,const uint8_t leftIdx,const MergeIdxPair &candIdx);
+  //int isAboveAvailable(const PredictionUnit &pu, const Position &posLT,const uint32_t width);
+  //int isLeftAvailable(const PredictionUnit &pu, const Position &posLT, const uint32_t height);
+#endif
   void spanGeoMotionInfo(PredictionUnit &pu, const MergeCtx &GeoMrgCtx, const uint8_t splitDir,
                          const MergeIdxPair &candIdx);
   bool addNeighborMv  (const Mv& currMv, static_vector<Mv, IBC_NUM_CANDIDATES>& neighborMvs);

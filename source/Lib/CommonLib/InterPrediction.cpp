@@ -611,7 +611,14 @@ void InterPrediction::xPredInterBi(PredictionUnit &pu, PelUnitBuf &pcYuvPred, co
       }
       else
       {
+#if BEZ_CURVE
+        if(pu.cu->geoFlag)
+          xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->geoFlag, bioApplied, luma, chroma);
+        else
+          xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->bezFlag, bioApplied, luma, chroma);
+#else
         xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->geoFlag, bioApplied, luma, chroma);
+#endif
       }
     }
   }
@@ -627,8 +634,13 @@ void InterPrediction::xPredInterBi(PredictionUnit &pu, PelUnitBuf &pcYuvPred, co
                      PelBuf(m_acYuvPred[1][1], pcYuvPred.Cb()), PelBuf(m_acYuvPred[1][2], pcYuvPred.Cr())));
   const bool lumaOnly   = luma && !chroma;
   const bool chromaOnly = !luma && chroma;
+#if BEZ_CURVE
+  if (!pu.cu->geoFlag &&(!pu.cu->bezFlag) && (!dmvrApplied) && (!bioApplied) && pps.getWPBiPred() && slice.getSliceType() == B_SLICE
+      && pu.cu->bcwIdx == BCW_DEFAULT)
+#else
   if (!pu.cu->geoFlag && (!dmvrApplied) && (!bioApplied) && pps.getWPBiPred() && slice.getSliceType() == B_SLICE
       && pu.cu->bcwIdx == BCW_DEFAULT)
+#endif
   {
     xWeightedPredictionBi( pu, srcPred0, srcPred1, pcYuvPred, m_maxCompIDToPred, lumaOnly, chromaOnly );
     if (yuvPredTmp)
@@ -636,7 +648,11 @@ void InterPrediction::xPredInterBi(PredictionUnit &pu, PelUnitBuf &pcYuvPred, co
       yuvPredTmp->copyFrom(pcYuvPred);
     }
   }
+#if BEZ_CURVE
+  else if( !pu.cu->geoFlag &&(!pu.cu->bezFlag) && pps.getUseWP() && slice.getSliceType() == P_SLICE )
+#else
   else if( !pu.cu->geoFlag && pps.getUseWP() && slice.getSliceType() == P_SLICE )
+#endif
   {
     xWeightedPredictionUni( pu, srcPred0, REF_PIC_LIST_0, pcYuvPred, -1, m_maxCompIDToPred, lumaOnly, chromaOnly );
     if (yuvPredTmp)
@@ -1366,7 +1382,11 @@ void InterPrediction::xWeightedAverage(const PredictionUnit &pu, const CPelUnitB
   }
   else if (refIdx0 >= 0 && refIdx1 < 0)
   {
+#if BEZ_CURVE
+    if( pu.cu->geoFlag || pu.cu->bezFlag)
+#else
     if( pu.cu->geoFlag )
+#endif
     {
       pcYuvDst.copyFrom( pcYuvSrc0 );
     }
@@ -1381,7 +1401,11 @@ void InterPrediction::xWeightedAverage(const PredictionUnit &pu, const CPelUnitB
   }
   else if (refIdx0 < 0 && refIdx1 >= 0)
   {
+#if BEZ_CURVE
+    if( pu.cu->geoFlag || pu.cu->bezFlag)
+#else
     if( pu.cu->geoFlag )
+#endif
     {
       pcYuvDst.copyFrom( pcYuvSrc1 );
     }
@@ -1572,6 +1596,55 @@ void InterPrediction::weightedGeoBlk(PredictionUnit &pu, const uint8_t splitDir,
   }
 }
 
+#if BEZ_CURVE
+void InterPrediction::motionCompensationBez(CodingUnit &cu, MergeCtx &bezMrgCtx)
+{
+  const uint8_t dis = cu.firstPU->bez3Dis;
+  const uint8_t topIdx = cu.firstPU->bez3TopIdx;
+  const uint8_t leftIdx = cu.firstPU->bez3LeftIdx;
+  for( auto &pu : CU::traversePUs( cu ) )
+  {
+    const UnitArea localUnitArea(cu.cs->area.chromaFormat, Area(0, 0, pu.lwidth(), pu.lheight()));
+
+    PelUnitBuf predBuf = cu.cs->getPredBuf(pu);
+    PelUnitBuf tmpBezBuf[2];
+
+    for (int i = 0; i < 2; i++)
+    {
+      tmpBezBuf[i] = m_bezPartBuf[i].getBuf(localUnitArea);
+
+      bezMrgCtx.setMergeInfo(pu, cu.firstPU->bezMergeIdx[i]);
+      PU::spanMotionInfo(pu);
+      // TODO: check 4:0:0 interaction with weighted prediction.
+      motionCompensation(pu, tmpBezBuf[i], REF_PIC_LIST_X, true, isChromaEnabled(pu.chromaFormat), nullptr, false);
+      if (g_mctsDecCheckEnabled && !MCTSHelper::checkMvBufferForMCTSConstraint(pu, true))
+      {
+        printf("DECODER_GEO_PU: pu motion vector across tile boundaries (%d,%d,%d,%d)\n", pu.lx(), pu.ly(), pu.lwidth(),
+               pu.lheight());
+      }
+    }
+
+    weightedBezBlk(pu,dis,topIdx,leftIdx,ChannelType::LUMA,predBuf,tmpBezBuf[0],tmpBezBuf[1]);
+    if (isChromaEnabled(pu.chromaFormat))
+    {
+      weightedBezBlk(pu,dis,topIdx,leftIdx,ChannelType::CHROMA,predBuf,tmpBezBuf[0],tmpBezBuf[1]);
+    }
+  }
+}
+void InterPrediction::weightedBezBlk(PredictionUnit &pu,const uint8_t dis,const uint8_t topIdx,const uint8_t leftIdx,ChannelType channel,
+                         PelUnitBuf &predDst,PelUnitBuf &predSrc0, PelUnitBuf &predSrc1)
+{
+  if (isLuma(channel))
+  {
+    m_if.weightedBezBlk( pu, pu.lumaSize().width, pu.lumaSize().height, COMPONENT_Y,dis,topIdx,leftIdx,predDst, predSrc0, predSrc1);
+  }
+  else
+  {
+    m_if.weightedBezBlk( pu, pu.chromaSize().width, pu.chromaSize().height, COMPONENT_Cb,dis,topIdx,leftIdx,predDst, predSrc0, predSrc1);
+    m_if.weightedBezBlk( pu, pu.chromaSize().width, pu.chromaSize().height, COMPONENT_Cr,dis,topIdx,leftIdx,predDst, predSrc0, predSrc1);
+  }
+}
+#endif
 void InterPrediction::xDmvrPrefetch(const PredictionUnit &pu, const bool forLuma)
 {
   const int mvShift = MV_FRACTIONAL_BITS_INTERNAL;
@@ -2271,11 +2344,19 @@ void MergeCtx::setMergeInfo( PredictionUnit& pu, int candIdx )
 #endif
 {
   CHECK( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
+#if BEZ_CURVE
+  pu.regularMergeFlag        = !(pu.ciipFlag || pu.cu->geoFlag || pu.cu->bezFlag);
+#else
   pu.regularMergeFlag        = !(pu.ciipFlag || pu.cu->geoFlag);
+#endif
   pu.mergeFlag               = true;
   pu.mmvdMergeFlag = false;
   pu.interDir                = interDirNeighbours[candIdx];
+#if BEZ_CURVE
+  pu.cu->imv = (!pu.cu->geoFlag && !pu.cu->bezFlag && useAltHpelIf[candIdx]) ? IMV_HPEL : 0;
+#else
   pu.cu->imv = (!pu.cu->geoFlag && useAltHpelIf[candIdx]) ? IMV_HPEL : 0;
+#endif
   pu.mergeIdx                = candIdx;
   pu.mergeType               = CU::isIBC(*pu.cu) ? MergeType::IBC : MergeType::DEFAULT_N;
 

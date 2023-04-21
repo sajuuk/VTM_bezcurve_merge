@@ -67,6 +67,51 @@ class EncSlice;
 // ====================================================================================================================
 
 /// CU encoder class
+#if BEZ_CURVE
+struct BezMergeCombo
+{
+  int ctrlPtsNum;//贝塞尔曲线控制点数量，可为3,4
+  bool edgePtsIntro;//边界控制点是否可导出
+  uint8_t edgeIdx;//边界控制点所在的边界编号
+  /*
+           0
+           --
+         1|  |3
+           --
+           2
+  */
+  std::pair<int,int> edgeOffset;//两个边界控制点所在坐标
+  uint8_t disOffset;//若控制点数为3则有意义，表示内部点的偏移
+  std::vector<std::vector<uint8_t>> points;//量化后贝塞尔曲线参数列表，控制点为4则有意义，包含2个角度控制和2个偏移控制
+  MergeIdxPair mergeIdx;
+  double cost;
+  BezMergeCombo() : ctrlPtsNum(3),edgePtsIntro(true),edgeIdx(0),edgeOffset{0,0},points{{0,0},{0,0},{0,0}},mergeIdx{0,0},cost(0.0){};
+  BezMergeCombo(int _ctrlPtsNum,bool _edgePtsIntro,uint8_t _edgeIdx,const std::pair<int,int>& _edgeOffset,const std::vector<std::vector<uint8_t>>& _points,const MergeIdxPair& idx,double _cost)
+  : ctrlPtsNum(_ctrlPtsNum),edgePtsIntro(_edgePtsIntro),edgeIdx(_edgeIdx),edgeOffset(_edgeOffset),points(_points),mergeIdx(idx),cost(_cost)
+  {
+    CHECK(_edgePtsIntro == false, "initialize with edgeIdx and edgeOffset, edgePtsIntro must set to false");
+  }
+  BezMergeCombo(int _ctrlPtsNum,bool _edgePtsIntro,const std::vector<std::vector<uint8_t>>& _points,const MergeIdxPair& idx,double _cost)
+  : ctrlPtsNum(_ctrlPtsNum),edgePtsIntro(_edgePtsIntro),points(_points),mergeIdx(idx),cost(_cost)
+  {
+    CHECK(_edgePtsIntro == true, "initialize without edgeIdx and edgeOffset, edgePtsIntro must set to true");
+  }
+   BezMergeCombo(uint8_t _disOffset,const std::pair<int,int>& _edgeOffset,const MergeIdxPair& idx,double _cost)
+  : ctrlPtsNum(3),edgePtsIntro(true),edgeIdx(0),disOffset(_disOffset),edgeOffset(_edgeOffset),mergeIdx(idx),cost(_cost){};
+};
+
+class BezComboCostList
+{
+public:
+  BezComboCostList() {};
+  ~BezComboCostList() {};
+  std::vector<BezMergeCombo> list;
+  void sortByCost()
+  {
+    std::stable_sort(list.begin(), list.end(),[](const BezMergeCombo &a,const BezMergeCombo &b){ return a.cost < b.cost;});
+  }
+};
+#endif
 struct GeoMergeCombo
 {
   int splitDir;
@@ -151,6 +196,9 @@ public:
     MMVD,
     CIIP,
     GPM,
+#if BEZ_CURVE
+    BEZCURVE,
+#endif
     IBC,
     NUM,
   };
@@ -186,7 +234,21 @@ public:
   bool          exportMergeInfo(PredictionUnit& pu, bool forceNoResidual);
   PelUnitBuf    getPredBuf(const UnitArea& unitArea) { return m_pelStorage.getBuf(unitArea); }
   MotionBuf     getMvBuf(const UnitArea& unitArea) { return MotionBuf(m_mvStorage.data(), g_miScaling.scale(unitArea.lumaSize())); }
-
+#if BEZ_CURVE
+  //dis 5bit | topIdx 7bit | leftIdx 7bit | mergeIdx0 4bit | mergIdx1 4bit |
+  static int getBezUnfiedIndex(uint8_t dis,uint8_t topIdx,uint8_t leftIdx,const MergeIdxPair& bezMergeIdx)
+  {
+    return (dis << 22 ) | (topIdx << 15) | (leftIdx << 8) | (bezMergeIdx[0] << 4) | bezMergeIdx[1];
+  }
+  static void updateBezIdx(int mergeIdx, uint8_t& dis,uint8_t& topIdx,uint8_t& leftIdx, MergeIdxPair& bezMergeIdx)
+  {
+    dis = (mergeIdx >> 22) & 0x1F;
+    topIdx = (mergeIdx >> 15) & 0x7F;
+    leftIdx = (mergeIdx >> 8) & 0x7F;
+    bezMergeIdx[0] = (mergeIdx >> 4) & 0xF;
+    bezMergeIdx[1] = (mergeIdx) & 0xF;
+  }
+#endif
   static int getGpmUnfiedIndex(int splitDir, const MergeIdxPair& geoMergeIdx)
   {
     return (splitDir << 8) | (geoMergeIdx[0] << 4) | geoMergeIdx[1];
@@ -277,6 +339,10 @@ private:
 
   static const MergeIdxPair m_geoModeTest[GEO_MAX_NUM_CANDS];
 
+#if BEZ_CURVE
+  static const MergeIdxPair m_bezModeTest[BEZ_MAX_NUM_CANDS];
+  Pel m_bezDiffBuff[MAX_CU_SIZE];
+#endif
 #if SHARP_LUMA_DELTA_QP || ENABLE_QPA_SUB_CTU
   void    updateLambda      ( Slice* slice, const int dQP,
  #if WCG_EXT && ER_CHROMA_QP_WCG_PPS
@@ -287,6 +353,9 @@ private:
   double                m_sbtCostSave[2];
 
   GeoComboCostList m_comboList;
+#if BEZ_CURVE
+  BezComboCostList m_bezcomboList;
+#endif
 #if JVET_AC0139_UNIFIED_MERGE
   MergeItemList         m_mergeItemList;
 #endif
@@ -410,6 +479,14 @@ protected:
   template<size_t N>
   bool prepareGpmComboList(const MergeCtx& mergeCtx, const UnitArea& localUnitArea, double sqrtLambdaForFirstPass,
     GeoComboCostList& comboList, PelUnitBufVector<N>& geoBuffer, PredictionUnit* pu);
+#if BEZ_CURVE
+  template <size_t N>
+  void addBezCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& localUnitArea, double sqrtLambdaForFirstPass,
+    const TempCtx& ctxStart, const BezComboCostList& comboList, PelUnitBufVector<N>& bezBuffer, DistParam& distParamSAD2, PredictionUnit* pu);
+  template <size_t N>
+  bool prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localUnitArea, double sqrtLambdaForFirstPass,
+  BezComboCostList& comboList,PelUnitBufVector<N>& bezBuffer, PredictionUnit* pu);
+#endif
 #else
   template<size_t N>
   unsigned int updateRdCheckingNum(double threshold, unsigned int numMergeSatdCand, static_vector<double, N>& costList);

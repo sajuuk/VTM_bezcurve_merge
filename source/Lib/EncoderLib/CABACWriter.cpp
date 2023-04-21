@@ -1871,18 +1871,28 @@ void CABACWriter::merge_data(const PredictionUnit& pu)
     return;
   }
   subblock_merge_flag(*pu.cu);
-  if (pu.cu->affine)
+  if (pu.cu->affine)//仿射模式和sbTMVP模式
   {
     merge_idx(pu);
     return;
   }
+#if BEZ_CURVE
+  const bool bezAvailable = pu.cu->cs->slice->getSPS()->getUseBezcurve() && pu.cu->cs->slice->isInterB() &&
+    pu.cs->sps->getMaxNumBezcurveCand() > 1  && pu.cu->lwidth() >= BEZ_MIN_CU_SIZE && pu.cu->lheight() >= BEZ_MIN_CU_SIZE
+                                        && pu.cu->lwidth() <= BEZ_MAX_CU_SIZE && pu.cu->lheight() <= BEZ_MAX_CU_SIZE
+                                        && pu.cu->lwidth() < 8 * pu.cu->lheight() && pu.cu->lheight() < 8 * pu.cu->lwidth();
+#endif
   const bool ciipAvailable = pu.cs->sps->getUseCiip() && !pu.cu->skip && pu.cu->lwidth() < MAX_CU_SIZE && pu.cu->lheight() < MAX_CU_SIZE && pu.cu->lwidth() * pu.cu->lheight() >= 64;
   const bool geoAvailable = pu.cu->cs->slice->getSPS()->getUseGeo() && pu.cu->cs->slice->isInterB() &&
     pu.cs->sps->getMaxNumGeoCand() > 1
                                                                     && pu.cu->lwidth() >= GEO_MIN_CU_SIZE && pu.cu->lheight() >= GEO_MIN_CU_SIZE
                                                                     && pu.cu->lwidth() <= GEO_MAX_CU_SIZE && pu.cu->lheight() <= GEO_MAX_CU_SIZE
                                                                     && pu.cu->lwidth() < 8 * pu.cu->lheight() && pu.cu->lheight() < 8 * pu.cu->lwidth();
+#if BEZ_CURVE
+  if (geoAvailable || ciipAvailable || bezAvailable)
+#else
   if (geoAvailable || ciipAvailable)
+#endif
   {
     m_binEncoder.encodeBin(pu.regularMergeFlag, Ctx::RegularMergeFlag(pu.cu->skip ? 0 : 1));
   }
@@ -1904,10 +1914,34 @@ void CABACWriter::merge_data(const PredictionUnit& pu)
   }
   else
   {
+#if BEZ_CURVE
+    if((bezAvailable || geoAvailable) && ciipAvailable)
+    {
+      //此时需要写入flag区分
+      ciip_flag(pu);
+      if(bezAvailable && geoAvailable)
+      {
+        bez_flag(pu);
+      }
+    }
+    else
+    {
+      if(!ciipAvailable)
+      {
+        if(bezAvailable && geoAvailable)
+        {
+          bez_flag(pu);
+        }
+      }
+    }
+    // ciip_flag(pu);
+    // bez_flag(pu);
+#else
     if (geoAvailable && ciipAvailable)
     {
       ciip_flag(pu);
     }
+#endif
     merge_idx(pu);
   }
 }
@@ -2037,6 +2071,38 @@ void CABACWriter::merge_idx( const PredictionUnit& pu )
       }
       return;
     }
+#if BEZ_CURVE
+    if(pu.cu->bezFlag)
+    {
+      const uint8_t dis = pu.bez3Dis;
+      const uint8_t candIdx0 = pu.bezMergeIdx[0];
+      uint8_t candIdx1 = pu.bezMergeIdx[1];
+      DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() bez3_dis=%d\n", dis );
+      DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() bez3_idx0=%d\n", candIdx0 );
+      DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() bez3_idx1=%d\n", candIdx1 );
+      xWriteTruncBinCode(dis,BEZ_P3_NUM_DISTANCES);
+      candIdx1 -= candIdx1 < candIdx0 ? 0 : 1;
+      const int maxNumBezCand = pu.cs->sps->getMaxNumBezcurveCand();
+      CHECK(maxNumBezCand < 2, "Incorrect max number of bez candidates");
+      CHECK(candIdx0 >= maxNumBezCand, "Incorrect candIdx0");
+      CHECK(candIdx1 >= maxNumBezCand, "Incorrect candIdx1");
+      const int numCandminus2 = maxNumBezCand - 2;
+      m_binEncoder.encodeBin(candIdx0 == 0 ? 0 : 1, Ctx::MergeIdx());
+      if( candIdx0 > 0 )
+      {
+        unary_max_eqprob(candIdx0 - 1, numCandminus2);
+      }
+      if (numCandminus2 > 0)
+      {
+        m_binEncoder.encodeBin(candIdx1 == 0 ? 0 : 1, Ctx::MergeIdx());
+        if (candIdx1 > 0)
+        {
+          unary_max_eqprob(candIdx1 - 1, numCandminus2 - 1);
+        }
+      }
+      return;
+    }
+#endif
     int numCandminus1;
     if (CU::isIBC(*pu.cu))
     {
@@ -2209,6 +2275,24 @@ void CABACWriter::ciip_flag(const PredictionUnit &pu)
   DTRACE(g_trace_ctx, D_SYNTAX, "ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", pu.ciipFlag ? 1 : 0, pu.lumaPos().x,
          pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);
 }
+#if BEZ_CURVE
+void CABACWriter::bez_flag(const PredictionUnit &pu)
+{
+  if (!pu.cs->sps->getUseBezcurve())
+  {
+    CHECK(pu.bezFlag == true, "invalid BEZ SPS");
+    return;
+  }
+  if (pu.cu->skip)
+  {
+    CHECK(pu.bezFlag == true, "invalid Ciip and skip");
+    return;
+  }
+  m_binEncoder.encodeBin(pu.bezFlag, Ctx::BezFlag(0));
+  DTRACE(g_trace_ctx, D_SYNTAX, "bez_flag() Bez=%d pos=(%d,%d) size=%dx%d\n", pu.bezFlag ? 1 : 0, pu.lumaPos().x,
+         pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);
+}
+#endif
 
 //================================================================================
 //  clause 7.3.8.8

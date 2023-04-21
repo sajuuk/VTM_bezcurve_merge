@@ -940,6 +940,9 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   ("NoBcwConstraintFlag",                             m_noBcwConstraintFlag,                           false, "Indicate that BCW is deactivated")
   ("NoCiipConstraintFlag",                            m_noCiipConstraintFlag,                          false, "Indicate that CIIP is deactivated")
   ("NoGpmConstraintFlag",                             m_noGeoConstraintFlag,                            false, "Indicate that GPM is deactivated")
+#if BEZ_CURVE
+ ("NoBezConstraintFlag",                             m_noBezCurveConstraintFlag,                            false, "Indicate that BEZ is deactivated")
+#endif
   ("NoTransformSkipConstraintFlag",                   m_noTransformSkipConstraintFlag,                  false, "Indicate that Transform Skip is deactivated")
   ("NoLumaTransformSize64ConstraintFlag",             m_noLumaTransformSize64ConstraintFlag,            false, "Indicate that Luma Transform Size 64 is deactivated")
   ("NoBDPCMConstraintFlag",                           m_noBDPCMConstraintFlag,                          false, "Indicate that BDPCM is deactivated")
@@ -1044,6 +1047,9 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   ("LadfIntervalLowerBound",                          cfg_ladfIntervalLowerBound,  cfg_ladfIntervalLowerBound, "LADF lower bound for 2nd lowest interval")
   ("CIIP",                                            m_ciip,                                           false, "Enable CIIP mode")
   ("Geo",                                             m_Geo,                                            false, "Enable geometric partitioning mode (0:off, 1:on)")
+#if BEZ_CURVE
+  ("Bez",                                             m_Bezcurve,                                            false, "Enable bezier curve partitioning mode (0:off, 1:on)")
+#endif
   ("HashME",                                          m_HashME,                                         false, "Enable hash motion estimation (0:off, 1:on)")
 
   ("AllowDisFracMMVD",                                m_allowDisFracMMVD,                               false, "Disable fractional MVD in MMVD mode adaptively")
@@ -1091,6 +1097,9 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   ("MergeRdCandQuotaSubBlk",                          m_mergeRdCandQuotaSubBlk,         NUM_AFF_MRG_SATD_CAND, "Quota of sub-block merge candidates in full RD checking")
   ("MergeRdCandQuotaCiip",                            m_mergeRdCandQuotaCiip,                               1, "Quota of CIIP merge candidates in full RD checking")
   ("MergeRdCandQuotaGpm",                             m_mergeRdCandQuotaGpm,        GEO_MAX_TRY_WEIGHTED_SATD, "Quota of GPM merge candidates in full RD checking")
+#if BEZ_CURVE
+  ("MergeRdCandQuotaBez",                             m_mergeRdCandQuotaBez,        BEZ_MAX_TRY_WEIGHTED_SATD, "Quota of BEZ merge candidates in full RD checking")
+#endif
 #endif
   ("PBIntraFast",                                     m_usePbIntraFast,                                 false, "Fast assertion if the intra mode is probable")
   ("AMaxBT",                                          m_useAMaxBT,                                      false, "Adaptive maximal BT-size")
@@ -1289,6 +1298,9 @@ bool EncAppCfg::parseCfg( int argc, char* argv[] )
   ("MaxNumMergeCand",                                 m_maxNumMergeCand,                                   5u, "Maximum number of merge candidates")
   ("MaxNumAffineMergeCand",                           m_maxNumAffineMergeCand,                             5u, "Maximum number of affine merge candidates")
   ("MaxNumGeoCand",                                   m_maxNumGeoCand,                                     5u, "Maximum number of geometric partitioning mode candidates")
+#if BEZ_CURVE
+  ("MaxNumBezCand",                                   m_maxNumBezcurveCand,                                     5u, "Maximum number of bezier curve partitioning mode candidates")
+#endif
   ("MaxNumIBCMergeCand",                              m_maxNumIBCMergeCand,                                6u, "Maximum number of IBC merge candidates")
     /* Misc. */
   ("SEIDecodedPictureHash,-dph",                      tmpDecodedPictureHashSEIMappedType,                   0, "Control generation of decode picture hash SEI messages\n"
@@ -4079,6 +4091,11 @@ bool EncAppCfg::xCheckParameter()
   xConfirmPara( m_maxNumGeoCand > GEO_MAX_NUM_UNI_CANDS, "MaxNumGeoCand must be no more than GEO_MAX_NUM_UNI_CANDS." );
   xConfirmPara( m_maxNumGeoCand > m_maxNumMergeCand, "MaxNumGeoCand must be no more than MaxNumMergeCand." );
   xConfirmPara( 0 < m_maxNumGeoCand && m_maxNumGeoCand < 2, "MaxNumGeoCand must be no less than 2 unless MaxNumGeoCand is 0." );
+#if BEZ_CURVE
+  xConfirmPara( m_maxNumBezcurveCand> BEZ_MAX_NUM_UNI_CANDS, "MaxNumBezCand must be no more than BEZ_MAX_NUM_UNI_CANDS." );
+  xConfirmPara( m_maxNumBezcurveCand > m_maxNumMergeCand, "MaxNumBezCand must be no more than MaxNumMergeCand." );
+  xConfirmPara( 0 < m_maxNumBezcurveCand && m_maxNumBezcurveCand < 2, "MaxNumBezCand must be no less than 2 unless MaxNumBezCand is 0." );
+#endif
   xConfirmPara( m_maxNumIBCMergeCand < 1, "MaxNumIBCMergeCand must be 1 or greater." );
   xConfirmPara( m_maxNumIBCMergeCand > IBC_MRG_MAX_NUM_CANDS, "MaxNumIBCMergeCand must be no more than IBC_MRG_MAX_NUM_CANDS." );
   xConfirmPara(m_maxNumAffineMergeCand < (m_sbTmvpEnableFlag ? 1 : 0),
@@ -4096,6 +4113,9 @@ bool EncAppCfg::xCheckParameter()
     || m_mergeRdCandQuotaCiip < 0 || m_mergeRdCandQuotaCiip > maxCandNum
     || m_mergeRdCandQuotaGpm < 0 || m_mergeRdCandQuotaGpm > maxCandNum,
     "MaxMergeRdCandNumReguar, MaxMergeRdCandNumReguarSmallBlk, MaxMergeRdCandNumSubBlk, MaxMergeRdCandNumCiip, and MaxMergeRdCandNumGpm must be between 0 and 15, inclusive");
+#if BEZ_CURVE
+  xConfirmPara(m_mergeRdCandQuotaBez < 0 || m_mergeRdCandQuotaBez > maxCandNum,"MaxMergeRdCandNumBez must be between 0 and 15, inclusive"); 
+#endif
 #endif
   if ( m_Affine == 0 )
   {
@@ -5329,6 +5349,9 @@ void EncAppCfg::xPrintParameter()
   msg( DETAILS, "Max Num Merge Candidates               : %d\n", m_maxNumMergeCand );
   msg( DETAILS, "Max Num Affine Merge Candidates        : %d\n", m_maxNumAffineMergeCand );
   msg( DETAILS, "Max Num Geo Merge Candidates           : %d\n", m_maxNumGeoCand );
+#if BEZ_CURVE
+  msg( DETAILS, "Max Num Bez Merge Candidates           : %d\n", m_maxNumBezcurveCand );
+#endif
   msg( DETAILS, "Max Num IBC Merge Candidates           : %d\n", m_maxNumIBCMergeCand );
   msg( DETAILS, "\n");
 
@@ -5421,6 +5444,9 @@ void EncAppCfg::xPrintParameter()
     msg( VERBOSE, "LADF:%d ", m_LadfEnabed );
     msg(VERBOSE, "CIIP:%d ", m_ciip);
     msg( VERBOSE, "Geo:%d ", m_Geo );
+#if BEZ_CURVE
+    msg( VERBOSE, "Bez:%d ", m_Bezcurve );
+#endif
     m_allowDisFracMMVD = m_MMVD ? m_allowDisFracMMVD : false;
     if ( m_MMVD )
       msg(VERBOSE, "AllowDisFracMMVD:%d ", m_allowDisFracMMVD);
@@ -5479,6 +5505,10 @@ void EncAppCfg::xPrintParameter()
     m_maxMergeRdCandNumTotal, m_mergeRdCandQuotaRegular, m_mergeRdCandQuotaRegularSmallBlk);
   msg( VERBOSE, "MergeRdCandQuotaSubBlk:%d MergeRdCandQuotaCiip:%d MergeRdCandQuotaGpm:%d ",
     m_mergeRdCandQuotaSubBlk, m_mergeRdCandQuotaCiip, m_mergeRdCandQuotaGpm);
+#if BEZ_CURVE
+  msg( VERBOSE, "MergeRdCandQuotaBez:%d ",
+     m_mergeRdCandQuotaBez);
+#endif
 #endif
   msg( VERBOSE, "PBIntraFast:%d ", m_usePbIntraFast );
   if( m_ImvMode ) msg( VERBOSE, "IMV4PelFast:%d ", m_Imv4PelFast );

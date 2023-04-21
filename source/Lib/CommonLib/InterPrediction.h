@@ -167,6 +167,9 @@ protected:
   RdCost*              m_pcRdCost;
 
   PelStorage           m_geoPartBuf[2];
+#if BEZ_CURVE
+  PelStorage           m_bezPartBuf[2];
+#endif
 
   static constexpr int MVBUFFER_SIZE = MAX_CU_SIZE / MIN_PU_SIZE;
 
@@ -272,6 +275,11 @@ public:
   void    motionCompensationGeo(CodingUnit &cu, MergeCtx &GeoMrgCtx);
   void    weightedGeoBlk(PredictionUnit &pu, const uint8_t splitDir, ChannelType channel, PelUnitBuf &predDst,
                          PelUnitBuf &predSrc0, PelUnitBuf &predSrc1);
+#if BEZ_CURVE
+  void    motionCompensationBez(CodingUnit &cu, MergeCtx &BezMrgCtx);
+  void    weightedBezBlk(PredictionUnit &pu,const uint8_t dis,const uint8_t topIdx,const uint8_t leftIdx,ChannelType channel,
+                         PelUnitBuf &predDst,PelUnitBuf &predSrc0, PelUnitBuf &predSrc1);
+#endif
 
   // DMVR related definitions
   using DmvrDist = int32_t;

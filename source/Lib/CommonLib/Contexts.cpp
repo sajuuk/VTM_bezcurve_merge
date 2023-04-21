@@ -807,6 +807,15 @@ const CtxSet ContextSetCfg::CiipFlag = ContextSetCfg::addCtxSet
   { CNU, },
   {   1, },
 });
+#if BEZ_CURVE
+const CtxSet ContextSetCfg::BezFlag = ContextSetCfg::addCtxSet
+({
+  {  59, },
+  {  59, },
+  { CNU, },
+  {   1, },
+});
+#endif
 
 const CtxSet ContextSetCfg::IBCFlag = ContextSetCfg::addCtxSet
 ({

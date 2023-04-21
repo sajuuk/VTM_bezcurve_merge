@@ -845,6 +845,48 @@ void InterpolationFilter::xWeightedGeoBlk(const PredictionUnit &pu, const uint32
   }
 }
 
+#if BEZ_CURVE
+#include "UnitTools.h"
+void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_t width, const uint32_t height, const ComponentID compIdx, 
+                    const uint8_t dis,const uint8_t topIdx,const uint8_t leftIdx, 
+                    PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1)
+{
+  Pel*    dst = predDst.get(compIdx).buf;
+  Pel*    src0 = predSrc0.get(compIdx).buf;
+  Pel*    src1 = predSrc1.get(compIdx).buf;
+  ptrdiff_t strideDst  = predDst.get(compIdx).stride;
+  ptrdiff_t strideSrc0 = predSrc0.get(compIdx).stride;
+  ptrdiff_t strideSrc1 = predSrc1.get(compIdx).stride;
+
+  uint8_t* bezMask = new uint8_t[MAX_CU_SIZE * MAX_CU_SIZE];
+
+  if(compIdx == COMPONENT_Y)
+  {
+    std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis, topIdx, leftIdx);
+    PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
+  }
+  else
+  {
+    std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis>>1, topIdx>>1, leftIdx>>1);
+    PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx>>1,-1),ctrlPt,std::make_pair(-1,leftIdx>>1)},bezMask);
+  }
+  for(int y=0;y<height;y++)
+  {
+    for(int x=0;x<width;x++)
+    {
+      if(bezMask[y * width + x] == 0)
+      {
+        dst[y * strideDst + x] = src0[y * strideSrc0 + x];
+      }
+      else
+      {
+        dst[y * strideDst + x] = src1[y * strideSrc1 + x];
+      }
+    }
+  }
+  delete[] bezMask;
+}
+#endif
 void InterpolationFilter::initInterpolationFilter( bool enable )
 {
 #if ENABLE_SIMD_OPT_MCIF

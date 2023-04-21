@@ -485,6 +485,35 @@ static constexpr int GEO_WEIGHT_MASK_SIZE = 3 * (GEO_MAX_CU_SIZE >> 3) * 2 + GEO
 static constexpr int GEO_MV_MASK_SIZE =         GEO_WEIGHT_MASK_SIZE >> 2;
 static constexpr int GEO_MAX_TRY_WEIGHTED_SAD = 60;
 static constexpr int GEO_MAX_TRY_WEIGHTED_SATD = 8;
+#if BEZ_CURVE
+static constexpr int BEZ_MAX_NUM_UNI_CANDS =                            6;
+static constexpr int BEZ_MAX_NUM_CANDS = BEZ_MAX_NUM_UNI_CANDS * (BEZ_MAX_NUM_UNI_CANDS - 1);
+static constexpr int BEZ_MIN_CU_LOG2 =                                  4;
+static constexpr int BEZ_MAX_CU_LOG2 =                                  6;//
+static constexpr int BEZ_MIN_CU_SIZE =               1 << BEZ_MIN_CU_LOG2;
+static constexpr int BEZ_MAX_CU_SIZE =               1 << BEZ_MAX_CU_LOG2;
+static constexpr int BEZ_NUM_CU_SIZE = ( BEZ_MAX_CU_LOG2 - BEZ_MIN_CU_LOG2 ) + 1;
+
+//static constexpr int BEZ_P3_LOG2_NUM_DIR = 1;
+static constexpr int BEZ_P3_LOG2_NUM_DISTANCES = 5;
+//static constexpr int BEZ_P3_NUM_DIR = 1 << BEZ_P3_LOG2_NUM_DIR;
+static constexpr int BEZ_P3_NUM_DISTANCES = 1 << BEZ_P3_LOG2_NUM_DISTANCES;
+static constexpr int BEZ_P3_NUM_MODE = BEZ_P3_NUM_DISTANCES;
+
+static constexpr int BEZ_P4_LOG2_NUM_ANGLES    = 3;
+static constexpr int BEZ_P4_NUM_ANGLES         = 1 << BEZ_P4_LOG2_NUM_ANGLES;
+static constexpr int BEZ_P4_LOG2_NUM_DISTANCES = 4;
+static constexpr int BEZ_P4_NUM_DISTANCES      = 1 << BEZ_P4_LOG2_NUM_DISTANCES;
+
+static constexpr int BEZ_MAX_TRY_WEIGHTED_SAD = 60;
+static constexpr int BEZ_MAX_TRY_WEIGHTED_SATD = 8;
+
+// static constexpr int GEO_NUM_PRESTORED_MASK =                           6;
+// static constexpr int GEO_WEIGHT_MASK_SIZE = 3 * (GEO_MAX_CU_SIZE >> 3) * 2 + GEO_MAX_CU_SIZE;
+// static constexpr int GEO_MV_MASK_SIZE =         GEO_WEIGHT_MASK_SIZE >> 2;
+// static constexpr int GEO_MAX_TRY_WEIGHTED_SAD = 60;
+// static constexpr int GEO_MAX_TRY_WEIGHTED_SATD = 8;
+#endif
 
 static constexpr int SBT_MAX_SIZE =                                    64; ///< maximum CU size for using SBT
 static constexpr int SBT_NUM_SL =                                      10; ///< maximum number of historical PU decision saved for a CU

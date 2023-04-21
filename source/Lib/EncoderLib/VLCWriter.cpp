@@ -1133,6 +1133,21 @@ void HLSWriter::codeSPS( const SPS* pcSPS )
                    "sps_max_num_merge_cand_minus_max_num_gpm_cand");
       }
     }
+#if BEZ_CURVE
+    xWriteFlag(pcSPS->getUseBezcurve() ? 1 : 0, "sps_bez_enabled_flag");
+    if (pcSPS->getUseBezcurve())
+    {
+      CHECK(pcSPS->getMaxNumMergeCand() < pcSPS->getMaxNumBezcurveCand(),
+            "The number of Bez candidates must not be greater than the number of merge candidates");
+      CHECK(2 > pcSPS->getMaxNumBezcurveCand(),
+            "The number of Bez candidates must not be smaller than 2");
+      if (pcSPS->getMaxNumMergeCand() >= 3)
+      {
+        xWriteUvlc(pcSPS->getMaxNumMergeCand() - pcSPS->getMaxNumBezcurveCand(),
+                   "sps_max_num_merge_cand_minus_max_num_bez_cand");
+      }
+    }
+#endif
   }
 
   xWriteUvlc(pcSPS->getLog2ParallelMergeLevelMinus2(), "sps_log2_parallel_merge_level_minus2");
@@ -2715,6 +2730,9 @@ void  HLSWriter::codeConstraintInfo  ( const ConstraintInfo* cinfo, const Profil
     xWriteFlag(cinfo->getNoBcwConstraintFlag() ? 1 : 0, "gci_no_bcw_constraint_flag");
     xWriteFlag(cinfo->getNoCiipConstraintFlag() ? 1 : 0, "gci_no_ciip_constraint_flag");
     xWriteFlag(cinfo->getNoGeoConstraintFlag() ? 1 : 0, "gci_no_gpm_constraint_flag");
+  #if BEZ_CURVE
+    xWriteFlag(cinfo->getNoBezConstraintFlag() ? 1 : 0, "gci_no_bez_constraint_flag");
+  #endif
 
     /* transform, quantization, residual */
     xWriteFlag(cinfo->getNoLumaTransformSize64ConstraintFlag() ? 1 : 0, "gci_no_luma_transform_size_64_constraint_flag");

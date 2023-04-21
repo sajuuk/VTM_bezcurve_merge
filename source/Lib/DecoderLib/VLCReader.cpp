@@ -1908,11 +1908,33 @@ void HLSyntaxReader::parseSPS(SPS* pcSPS)
         pcSPS->setMaxNumGeoCand(2);
       }
     }
+#if BEZ_CURVE
+    xReadFlag(uiCode, "sps_bez_enabled_flag");
+    pcSPS->setUseBezcurve(uiCode != 0);
+    if (pcSPS->getUseBezcurve())
+    {
+      if (pcSPS->getMaxNumMergeCand() >= 3)
+      {
+        xReadUvlc(uiCode, "sps_max_num_merge_cand_minus_max_num_bez_cand");
+        CHECK(pcSPS->getMaxNumMergeCand() - 2 < uiCode,
+              "sps_max_num_merge_cand_minus_max_num_bez_cand must not be greater than the number of merge candidates minus 2");
+        pcSPS->setMaxNumBezcurveCand((uint32_t)(pcSPS->getMaxNumMergeCand() - uiCode));
+      }
+      else
+      {
+        pcSPS->setMaxNumBezcurveCand(2);
+      }
+    }
+#endif
   }
   else
   {
     pcSPS->setUseGeo(0);
     pcSPS->setMaxNumGeoCand(0);
+#if BEZ_CURVE
+    pcSPS->setUseBezcurve(0);
+    pcSPS->setMaxNumBezcurveCand(0);
+#endif
   }
 
   xReadUvlc(uiCode, "sps_log2_parallel_merge_level_minus2");
@@ -4578,6 +4600,9 @@ void HLSyntaxReader::parseConstraintInfo(ConstraintInfo *cinfo, const ProfileTie
     xReadFlag(symbol, "gci_no_bcw_constraint_flag");                     cinfo->setNoBcwConstraintFlag(symbol > 0 ? true : false);
     xReadFlag(symbol, "gci_no_ciip_constraint_flag");                    cinfo->setNoCiipConstraintFlag(symbol > 0 ? true : false);
     xReadFlag(symbol, "gci_no_gpm_constraint_flag");                     cinfo->setNoGeoConstraintFlag(symbol > 0 ? true : false);
+  #if BEZ_CURVE
+    xReadFlag(symbol, "gci_no_bez_constraint_flag");                     cinfo->setNoBezConstraintFlag(symbol > 0 ? true : false);
+  #endif
 
     /* transform, quantization, residual */
     xReadFlag(symbol, "gci_no_luma_transform_size_64_constraint_flag");  cinfo->setNoLumaTransformSize64ConstraintFlag(symbol > 0 ? true : false);

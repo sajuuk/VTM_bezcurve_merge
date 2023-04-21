@@ -1414,6 +1414,9 @@ void EncLib::xInitSPS( SPS& sps )
   cinfo->setNoIbcConstraintFlag(m_noIbcConstraintFlag);
   cinfo->setNoCiipConstraintFlag(m_noCiipConstraintFlag);
   cinfo->setNoGeoConstraintFlag(m_noGeoConstraintFlag);
+#if BEZ_CURVE
+  cinfo->setNoBezConstraintFlag(m_noBezcurveConstraintFlag);
+#endif
   cinfo->setNoLadfConstraintFlag(m_noLadfConstraintFlag);
   cinfo->setNoTransformSkipConstraintFlag(m_noTransformSkipConstraintFlag);
   cinfo->setNoBDPCMConstraintFlag(m_noBDPCMConstraintFlag);
@@ -1516,6 +1519,9 @@ void EncLib::xInitSPS( SPS& sps )
   sps.setMaxNumAffineMergeCand(getMaxNumAffineMergeCand());
   sps.setMaxNumIBCMergeCand(getMaxNumIBCMergeCand());
   sps.setMaxNumGeoCand(getMaxNumGeoCand());
+#if BEZ_CURVE
+  sps.setMaxNumBezcurveCand(getMaxNUmBezcurveCand());
+#endif
   sps.setUseAffine             ( m_Affine );
   sps.setUseAffineType         ( m_AffineType );
   sps.setUsePROF               ( m_PROF );
@@ -1542,6 +1548,9 @@ void EncLib::xInitSPS( SPS& sps )
 
   sps.setUseCiip            ( m_ciip );
   sps.setUseGeo                ( m_Geo );
+#if BEZ_CURVE
+  sps.setUseBezcurve            (m_Bezcurve);
+#endif
   sps.setUseMMVD               ( m_MMVD );
   sps.setFpelMmvdEnabledFlag   (( m_MMVD ) ? m_allowDisFracMMVD : false);
   sps.setBdofControlPresentInPhFlag(m_BIO);

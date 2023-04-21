@@ -608,6 +608,17 @@ void DecCu::xReconInter(CodingUnit &cu)
     m_pcInterPred->motionCompensationGeo( cu, m_geoMrgCtx );
     PU::spanGeoMotionInfo(*cu.firstPU, m_geoMrgCtx, cu.firstPU->geoSplitDir, cu.firstPU->geoMergeIdx);
   }
+#if BEZ_CURVE
+  else if( cu.bezFlag )
+  {
+    std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*cu.firstPU,m_bezDiffBuff);
+    CHECK(edgeIdx.first == -1 || edgeIdx.second == -1,"bez edge idx cannot be -1");
+    cu.firstPU->bez3TopIdx = edgeIdx.first;
+    cu.firstPU->bez3LeftIdx = edgeIdx.second;
+    m_pcInterPred->motionCompensationBez(cu,m_bezMrgCtx);
+    PU::spanBezMotionInfo(*cu.firstPU,m_bezMrgCtx, cu.firstPU->bez3Dis,cu.firstPU->bez3TopIdx,cu.firstPU->bez3LeftIdx,cu.firstPU->bezMergeIdx);
+  }
+#endif
   else
   {
     m_pcIntraPred->geneIntrainterPred(cu);
@@ -855,6 +866,10 @@ void DecCu::xDeriveCuMvs(CodingUnit &cu)
         if( pu.cu->geoFlag )
         {
           PU::getGeoMergeCandidates( pu, m_geoMrgCtx );
+        }
+        else if (pu.cu->bezFlag)
+        {
+          PU::getBezMergeCandidates( pu, m_bezMrgCtx );
         }
         else if (pu.cu->affine)
         {

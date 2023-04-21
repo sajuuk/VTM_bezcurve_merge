@@ -97,6 +97,10 @@ private:
   MotionInfo        m_SubPuMiBuf[(MAX_CU_SIZE * MAX_CU_SIZE) >> (MIN_CU_LOG2 << 1)];
 
   MergeCtx          m_geoMrgCtx;
+#if BEZ_CURVE
+  MergeCtx          m_bezMrgCtx;
+  Pel               m_bezDiffBuff[MAX_CU_SIZE];
+#endif
 };
 
 //! \}

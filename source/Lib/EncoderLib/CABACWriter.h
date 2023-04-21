@@ -136,6 +136,9 @@ public:
   void        mvp_flag                  ( const PredictionUnit&         pu,       RefPicList        eRefList );
 
   void        ciip_flag(const PredictionUnit &pu);
+#if BEZ_CURVE
+  void        bez_flag(const PredictionUnit &pu);
+#endif
   void        smvd_mode              ( const PredictionUnit&         pu );
 
 

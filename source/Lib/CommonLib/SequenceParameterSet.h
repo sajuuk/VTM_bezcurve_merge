@@ -520,6 +520,9 @@ private:
   bool              m_bcw;
   bool              m_ciip;
   bool              m_Geo;
+#if BEZ_CURVE
+  bool              m_Bezcurve;
+#endif
 
   bool              m_ladfEnabled;
   int               m_ladfNumIntervals;
@@ -545,6 +548,9 @@ private:
   uint32_t          m_maxNumAffineMergeCand;
   uint32_t          m_maxNumIBCMergeCand;
   uint32_t          m_maxNumGeoCand;
+#if BEZ_CURVE
+  uint32_t          m_maxNumBezcurveCand;
+#endif
   bool              m_scalingMatrixAlternativeColourSpaceDisabledFlag;
   bool              m_scalingMatrixDesignatedColourSpaceFlag;
 
@@ -839,6 +845,10 @@ public:
   void                    setMaxNumGeoCand(uint32_t u)         { m_maxNumGeoCand = u; }
   void                    setAffineAmvrEnabledFlag( bool val ) { m_affineAmvrEnabledFlag = val; }
   bool                    getAffineAmvrEnabledFlag() const     { return m_affineAmvrEnabledFlag; }
+#if BEZ_CURVE
+  uint32_t                getMaxNumBezcurveCand() const        { return m_maxNumBezcurveCand; }
+  void                    setMaxNumBezcurveCand(uint32_t u)    { m_maxNumBezcurveCand = u; }
+#endif
 
   bool                    getGeneralHrdParametersPresentFlag() const { return m_generalHrdParametersPresentFlag; }
   void                    setGeneralHrdParametersPresentFlag(bool b) { m_generalHrdParametersPresentFlag = b; }
@@ -918,6 +928,10 @@ public:
   bool      getUseCiip() const                  { return m_ciip; }
   void      setUseGeo(bool b)                   { m_Geo = b; }
   bool      getUseGeo() const                   { return m_Geo; }
+#if BEZ_CURVE
+  void      setUseBezcurve(bool b)              { m_Bezcurve = b; }
+  bool      getUseBezcurve() const              { return m_Bezcurve; }
+#endif
   void      setUseMRL(bool b)                   { m_MRL = b; }
   bool      getUseMRL() const                   { return m_MRL; }
   void      setUseMIP(bool b)                   { m_MIP = b; }

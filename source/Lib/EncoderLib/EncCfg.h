@@ -220,6 +220,9 @@ protected:
   bool      m_noIbcConstraintFlag;
   bool      m_noCiipConstraintFlag;
   bool      m_noGeoConstraintFlag;
+#if BEZ_CURVE
+  bool      m_noBezcurveConstraintFlag;
+#endif
   bool      m_noLadfConstraintFlag;
   bool      m_noTransformSkipConstraintFlag;
   bool      m_noLumaTransformSize64ConstraintFlag;
@@ -359,6 +362,9 @@ protected:
 
   bool      m_ciip;
   bool      m_Geo;
+#if BEZ_CURVE
+  bool      m_Bezcurve;
+#endif
   bool      m_allowDisFracMMVD;
   bool      m_AffineAmvr;
   bool      m_HashME;
@@ -404,6 +410,9 @@ protected:
   int       m_mergeRdCandQuotaSubBlk;
   int       m_mergeRdCandQuotaCiip;
   int       m_mergeRdCandQuotaGpm;
+#if BEZ_CURVE
+  int       m_mergeRdCandQuotaBez;
+#endif
 #endif
   bool      m_usePbIntraFast;
   bool      m_useAMaxBT;
@@ -908,6 +917,9 @@ protected:
   uint32_t      m_maxNumMergeCand;                    ///< Maximum number of merge candidates
   uint32_t      m_maxNumAffineMergeCand;              ///< Maximum number of affine merge candidates
   uint32_t      m_maxNumGeoCand;
+#if BEZ_CURVE
+  uint32_t      m_maxNumBezcurveCand;
+#endif
   uint32_t      m_maxNumIBCMergeCand;                 ///< Max number of IBC merge candidates
   ScalingListMode m_useScalingListId;             ///< Using quantization matrix i.e. 0=off, 1=default, 2=file.
   std::string m_scalingListFileName;              ///< quantization matrix file name
@@ -1158,6 +1170,10 @@ public:
   void      setNoCiipConstraintFlag(bool val) { m_noCiipConstraintFlag = val; }
   bool      getNoGeoConstraintFlag() const { return m_noGeoConstraintFlag; }
   void      setNoGeoConstraintFlag(bool val) { m_noGeoConstraintFlag = val; }
+#if BEZ_CURVE
+  bool      getNoBezcurveConstraintFlag() const { return m_noBezcurveConstraintFlag; }
+  void      setNoBezcurveConstraintFlag(bool val) { m_noBezcurveConstraintFlag = val; }
+#endif
   bool      getNoLadfConstraintFlag() const { return m_noLadfConstraintFlag; }
   void      setNoLadfConstraintFlag(bool val) { m_noLadfConstraintFlag = val; }
   bool      getNoTransformSkipConstraintFlag() const { return m_noTransformSkipConstraintFlag; }
@@ -1468,6 +1484,10 @@ public:
   bool      getUseCiip                   ()         const { return m_ciip; }
   void      setUseGeo                       ( bool b )       { m_Geo = b; }
   bool      getUseGeo                       ()         const { return m_Geo; }
+#if BEZ_CURVE
+  void      setUseBezcurve               ( bool b )       { m_Bezcurve = b; }
+  bool      getUseBezcurve               ()            const { return m_Bezcurve; }    
+#endif
   void      setAllowDisFracMMVD             ( bool b )       { m_allowDisFracMMVD = b;    }
   bool      getAllowDisFracMMVD             ()         const { return m_allowDisFracMMVD; }
   void      setUseHashME                    ( bool b )       { m_HashME = b; }
@@ -1563,6 +1583,10 @@ public:
   int       getMergeRdCandQuotaCiip         () const         { return m_mergeRdCandQuotaCiip;}
   void      setMergeRdCandQuotaGpm          ( int n )        { m_mergeRdCandQuotaGpm = n;}
   int       getMergeRdCandQuotaGpm          () const         { return m_mergeRdCandQuotaGpm;}
+#if BEZ_CURVE
+  void      setMergeRdCandQuotaBez         ( int n )        { m_mergeRdCandQuotaBez = n;}
+  int       getMergeRdCandQuotaBez         () const         { return m_mergeRdCandQuotaBez;}
+#endif
 #endif
   void      setUsePbIntraFast               ( bool  n )      { m_usePbIntraFast = n; }
   bool      getUsePbIntraFast               () const         { return m_usePbIntraFast; }
@@ -2574,6 +2598,10 @@ public:
   uint32_t     getMaxNumAffineMergeCand          ()                  { return m_maxNumAffineMergeCand; }
   void         setMaxNumGeoCand                  ( uint32_t u )      { m_maxNumGeoCand = u;    }
   uint32_t     getMaxNumGeoCand                  ()                  { return m_maxNumGeoCand; }
+#if BEZ_CURVE
+  void         setMaxNumBezcurveCand             ( uint32_t u )      { m_maxNumBezcurveCand = u; }
+  uint32_t     getMaxNUmBezcurveCand             ()                  { return m_maxNumBezcurveCand; }
+#endif
   void         setMaxNumIBCMergeCand             ( uint32_t u )      { m_maxNumIBCMergeCand = u; }
   uint32_t     getMaxNumIBCMergeCand             ()                  { return m_maxNumIBCMergeCand; }
   void         setUseScalingListId    ( ScalingListMode u )          { m_useScalingListId       = u;   }
