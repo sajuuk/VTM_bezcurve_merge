@@ -854,9 +854,13 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
   Pel*    dst = predDst.get(compIdx).buf;
   Pel*    src0 = predSrc0.get(compIdx).buf;
   Pel*    src1 = predSrc1.get(compIdx).buf;
-  ptrdiff_t strideDst  = predDst.get(compIdx).stride;
-  ptrdiff_t strideSrc0 = predSrc0.get(compIdx).stride;
-  ptrdiff_t strideSrc1 = predSrc1.get(compIdx).stride;
+  ptrdiff_t strideDst  = predDst.get(compIdx).stride - width;
+  ptrdiff_t strideSrc0 = predSrc0.get(compIdx).stride - width;
+  ptrdiff_t strideSrc1 = predSrc1.get(compIdx).stride - width;
+  const ClpRng  clipRng = pu.cu->slice->clpRngs().comp[compIdx];
+  const int32_t clipbd = clipRng.bd;
+  const int32_t shiftWeighted = IF_INTERNAL_FRAC_BITS(clipbd);
+  const int32_t offsetWeighted = (1 << (shiftWeighted - 1)) + (IF_INTERNAL_OFFS);
 
   uint8_t* bezMask = new uint8_t[MAX_CU_SIZE * MAX_CU_SIZE];
 
@@ -864,11 +868,19 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
   {
     std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis, topIdx, leftIdx);
     PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
+    PU::_debugOutputMask(bezMask,std::to_string(height)+ "x" + std::to_string(width)+ "bezMask.yuv",height,width);//debug bez
   }
-  else
+  else//yuv 420 only
   {
-    std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis>>1, topIdx>>1, leftIdx>>1);
-    PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx>>1,-1),ctrlPt,std::make_pair(-1,leftIdx>>1)},bezMask);
+    std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis, topIdx, leftIdx);
+    PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
+    for(int y=0;y<height;y++)//down sample
+    {
+      for(int x=0;x<width;x++)
+      {
+        bezMask[y * width + x] = bezMask[(y*2) * width + (x*2)];
+      }
+    }
   }
   for(int y=0;y<height;y++)
   {
@@ -876,13 +888,18 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
     {
       if(bezMask[y * width + x] == 0)
       {
-        dst[y * strideDst + x] = src0[y * strideSrc0 + x];
+        //*dst++ = ClipPel( rightShift( (*src0++) + offsetWeighted, shiftWeighted),clipRng);
+        *dst++ = ClipPel( rightShift_round( (*src0++) + IF_INTERNAL_OFFS, shiftWeighted),clipRng);
       }
       else
       {
-        dst[y * strideDst + x] = src1[y * strideSrc1 + x];
+        //*dst++ = ClipPel( rightShift( (*src1++) + offsetWeighted, shiftWeighted),clipRng);
+        *dst++ = ClipPel( rightShift_round( (*src1++) + IF_INTERNAL_OFFS, shiftWeighted),clipRng);
       }
     }
+    dst += strideDst;
+    src0 += strideSrc0;
+    src1 += strideSrc1;
   }
   delete[] bezMask;
 }

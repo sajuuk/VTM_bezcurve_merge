@@ -2667,7 +2667,7 @@ void CABACReader::bez_flag(PredictionUnit &pu)
   RExt__DECODER_DEBUG_BIT_STATISTICS_CREATE_SET(STATS__CABAC_BITS__BEZ_FLAG);
 
   pu.bezFlag = (m_binDecoder.decodeBin(Ctx::BezFlag(0)));
-  DTRACE(g_trace_ctx, D_SYNTAX, "ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", pu.bezFlag ? 1 : 0, pu.lumaPos().x,
+  DTRACE(g_trace_ctx, D_SYNTAX, "bez_flag() Bez=%d pos=(%d,%d) size=%dx%d\n", pu.bezFlag ? 1 : 0, pu.lumaPos().x,
          pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);
 }
 //================================================================================

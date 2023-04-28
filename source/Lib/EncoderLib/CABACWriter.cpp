@@ -2283,11 +2283,11 @@ void CABACWriter::bez_flag(const PredictionUnit &pu)
     CHECK(pu.bezFlag == true, "invalid BEZ SPS");
     return;
   }
-  if (pu.cu->skip)
-  {
-    CHECK(pu.bezFlag == true, "invalid Ciip and skip");
-    return;
-  }
+  // if (pu.cu->skip)
+  // {
+  //   CHECK(pu.bezFlag == true, "invalid Ciip and skip");
+  //   return;
+  // }
   m_binEncoder.encodeBin(pu.bezFlag, Ctx::BezFlag(0));
   DTRACE(g_trace_ctx, D_SYNTAX, "bez_flag() Bez=%d pos=(%d,%d) size=%dx%d\n", pu.bezFlag ? 1 : 0, pu.lumaPos().x,
          pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);

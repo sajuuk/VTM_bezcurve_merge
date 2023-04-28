@@ -4336,14 +4336,14 @@ std::pair<double,double> PU::getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis
   const int width = pu.Y().width;
   Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
   const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
-  double k = - 1.0 * leftIdx / topIdx;
+  double k = - 1.0 * (leftIdx+1) / (topIdx+1);
   double theta = atan(k);
   //double posX,posY;
   double y0 = 1.0 * midPoint.y - k * midPoint.x;
   double x0 = 1.0 * midPoint.x - midPoint.y / k;
 
-  double x = x0 + dis * cos(theta);
-  double y = y0 + dis * sin(theta);
+  double x = x0 + dis * sin(theta);
+  double y = y0 + dis * cos(theta);
   return std::make_pair(x,y);
 }
 
@@ -4407,7 +4407,7 @@ void PU::getBezMergeCandidates(const PredictionUnit &pu, MergeCtx &bezMrgCtx)
       }
 #endif
       bezMrgCtx.numValidMergeCand++;
-      if (bezMrgCtx.numValidMergeCand == GEO_MAX_NUM_UNI_CANDS)
+      if (bezMrgCtx.numValidMergeCand == BEZ_MAX_NUM_UNI_CANDS)
       {
         return;
       }
@@ -4502,7 +4502,7 @@ inline int isLeftAvailable(const PredictionUnit &pu, const Position &posLT, cons
 std::pair<int,int> PU::getBezP3EdgePts(const PredictionUnit &pu,Pel *recoBuffer)
 {
   CodingStructure &cs = *pu.cs;
-    const int width = pu.lumaSize().width;
+  const int width = pu.lumaSize().width;
   const int height = pu.lumaSize().height;
   const Position posLT = pu.Y().pos();
   int numAboveNeighbor = isAboveAvailable(pu,posLT,width);
@@ -4526,6 +4526,7 @@ std::pair<int,int> PU::getBezP3EdgePts(const PredictionUnit &pu,Pel *recoBuffer)
   }
   int leftIdx = getMaxDiffIdx(recoBuffer,height);
   //以上步骤获得边界像素导出结果
+  return std::make_pair(width/2,height/2);//debug bez
   return std::make_pair(topIdx,leftIdx);
 }
 std::pair<double,double> PU::calcBezPoint(int degree,const std::vector<std::pair<double,double>> &bezCtrlPts,double t)
@@ -4541,12 +4542,26 @@ std::pair<double,double> PU::calcBezPoint(int degree,const std::vector<std::pair
   }
   return temp[0];
 }
+void PU::_debugOutputMask(uint8_t *bezMask,std::string fileName,int height ,int width)
+{
+  FILE* fp=fopen(fileName.c_str(),"wb");
+  for(int i=0;i<MAX_CU_SIZE * MAX_CU_SIZE;i++)
+  {
+    if(bezMask[i]) bezMask[i]=255;
+  }
+  fwrite(bezMask,sizeof(uint8_t),MAX_CU_SIZE * MAX_CU_SIZE,fp);
+  for(int i=0;i<MAX_CU_SIZE * MAX_CU_SIZE;i++)
+  {
+    if(bezMask[i]) bezMask[i]=1;
+  }
+  fclose(fp);
+}
 void PU::drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double,double>> &bezCtrlPts,uint8_t *bezMask)
 {
   const int height = pu.Y().height;
   const int width = pu.Y().width;
   double totalsteps = 3 * std::max(height,width);
-  memset(bezMask,1,sizeof(uint8_t) * height * width);
+  memset(bezMask,1,sizeof(uint8_t) * MAX_CU_SIZE * MAX_CU_SIZE);
   for(double u=0;u<1.0;u+=1.0/totalsteps)
   {
     std::pair<double,double> pt = calcBezPoint(2,bezCtrlPts,u);
@@ -4554,7 +4569,7 @@ void PU::drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double
     int y = (int)round(pt.second);
     if(x >= 0 && x <width && y>=0 && y < height)
     {
-      bezMask[y * width + x] = 0;//
+      bezMask[y * MAX_CU_SIZE + x] = 0;//
     }
   }
   const int delta[4][2] = {{0,1}, {0,-1}, {1,0}, {-1,0}};
@@ -4564,10 +4579,10 @@ void PU::drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double
   {
     for(int x = 0; x < width; x++)
     {
-      if(bezMask[y*width + x]==1)
+      if(bezMask[y*MAX_CU_SIZE + x]==1)
       {
         q.push(std::make_pair(x,y));
-        bezMask[y*width + x]=0;
+        bezMask[y*MAX_CU_SIZE + x]=0;
         found=true;
         break;
       }
@@ -4584,9 +4599,9 @@ void PU::drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double
       int nx=x+delta[i][0];
       int ny=y+delta[i][1];
       if(nx<0 || nx>=width || ny<0 || ny>=height) continue;
-      if(bezMask[ny*width + nx]==1) 
+      if(bezMask[ny*MAX_CU_SIZE + nx]==1) 
       {
-        bezMask[ny*width + nx]=0;
+        bezMask[ny*MAX_CU_SIZE + nx]=0;
         q.push(std::make_pair(nx,ny));
       }
     }
@@ -4644,11 +4659,11 @@ void PU::spanBezMotionInfo(PredictionUnit &pu, const MergeCtx &bezMrgCtx, const 
   // }
   std::pair<double,double> ctrlPt = getBezP3CtrlPt(pu,dis,topIdx,leftIdx);
   drawBezMask(pu,std::vector<std::pair<double,double>>{std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
-  for(int y=0;y<mb.height;y++)
+  for(int y=0;y<mb.height;y++)//motion buf is 4x4
   {
     for(int x=0;x<mb.width;x++)
     {
-      if(bezMask[y*mb.height + x]==0)
+      if(bezMask[y*mb.width*4 + x*4]==0)
       {
         mb.at(x, y).isInter = true;
         mb.at(x, y).interDir = bezMrgCtx.interDirNeighbours[candIdx0];

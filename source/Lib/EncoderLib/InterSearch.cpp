@@ -10981,6 +10981,14 @@ void InterSearch::encodeResAndCalcRdInterCU(CodingStructure &cs, Partitioner &pa
   cs.dist     = finalDistortion;
   cs.fracBits = finalFracBits;
   cs.cost     = m_pcRdCost->calcRdCost(cs.fracBits, cs.dist);//CU率失真代价计算
+// #if BEZ_CURVE
+//   if(cu.bezFlag)//debug force choose bez
+//   {
+//     cs.cost=0;
+//     cs.fracBits=0;
+//     cs.dist=0;
+//   }
+// #endif
   if (cs.slice->getSPS()->getUseColorTrans())
   {
     if (cs.cost < cs.tmpColorSpaceCost)

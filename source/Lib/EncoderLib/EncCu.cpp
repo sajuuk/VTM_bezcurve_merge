@@ -474,6 +474,14 @@ bool EncCu::xCheckBestMode( CodingStructure *&tempCS, CodingStructure *&bestCS, 
     {
       const CodingUnit& cu = *tempCS->cus.front();
       CHECK( cu.skip && !cu.firstPU->mergeFlag, "Skip flag without a merge flag is not allowed!" );
+#if BEZ_CURVE
+      if(cu.bezFlag && !cu.skip)//debug force bez
+      {
+        tempCS->cost=0;
+        tempCS->dist=0;
+        tempCS->fracBits=0;
+      }
+#endif
     }
 
 #if WCG_EXT
@@ -3524,6 +3532,7 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
       pu->mergeFlag = true;
       pu->regularMergeFlag = false;
       pu->cu->bezFlag = true;
+      pu->cu->geoFlag = false;
       PU::getBezMergeCandidates(*pu,bezMergeCtx);
       toAddBezCand = prepareBezComboList(bezMergeCtx,localUnitArea,sqrtLambdaForFirstPass,bezComboList,bezBuffer,pu);
       numMergeSatdCand += toAddBezCand ? std::min(m_pcEncCfg->getMergeRdCandQuotaBez(),(int)comboList.list.size()) : 0;
@@ -4454,7 +4463,8 @@ void EncCu::addBezCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& l
     auto dstBuf = mergeItem->getPredBuf(localUnitArea);
     generateMergePrediction(localUnitArea, mergeItem, *pu, true, false, dstBuf, false, false,
       bezBuffer[mergeIdxPair[0]], bezBuffer[mergeIdxPair[1]]);
-    mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);
+    //mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);
+    mergeItem->cost = 0;//debug force bez
     m_mergeItemList.insertMergeItemToList(mergeItem);
 
 
@@ -4736,10 +4746,11 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   // }
   // int leftIdx = getMaxDiffIdx(recoBuffer,height);
   // //以上步骤获得边界像素导出结果
+  if(pu->Y().pos().x == 0 || pu->Y().pos().y == 0) return false;
   std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*pu,m_bezDiffBuff);
   int topIdx = edgeIdx.first;
   int leftIdx = edgeIdx.second;
-  if(topIdx == -1 && leftIdx == -1) return false;
+  if(topIdx == -1 || leftIdx == -1) return false;
 
 
 
@@ -4792,7 +4803,7 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   comboList.list.clear();
   Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
   const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
-  double k = - 1.0 * leftIdx / topIdx;
+  double k = - 1.0 * (leftIdx+1) / (topIdx+1);
   double theta = atan(k);
   double posX,posY;
   double y0 = 1.0 * midPoint.y - k * midPoint.x;
@@ -4827,8 +4838,8 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
       if(posX < width && posY < height)
       {
         comboList.list.push_back(BezMergeCombo(dis,std::make_pair(topIdx,leftIdx),mergeIdxPair,0));
-        posX += step*cos(theta);
-        posY += step*sin(theta);
+        posX += step*sin(theta);
+        posY += step*cos(theta);
       }
       else break;
     }
@@ -5500,6 +5511,12 @@ void EncCu::xCalDebCost( CodingStructure &cs, Partitioner &partitioner, bool cal
     const int sign    = sgn2(distTmp);
     distTmp = distTmp < 0 ? -distTmp : distTmp;
     cs.costDbOffset = sign * m_pcRdCost->calcRdCost( 0, distTmp );
+#if BEZ_CURVE
+    if(cu->bezFlag && !cu->skip)//debug force bez
+    {
+      cs.costDbOffset = 0;
+    }
+#endif
   }
 
   m_deblockingFilter->setEnc( false );

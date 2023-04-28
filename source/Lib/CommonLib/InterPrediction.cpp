@@ -202,6 +202,10 @@ void InterPrediction::init(RdCost* pcRdCost, ChromaFormat chromaFormatIdc, const
 
     m_geoPartBuf[0].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
     m_geoPartBuf[1].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
+#if BEZ_CURVE
+    m_bezPartBuf[0].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
+    m_bezPartBuf[1].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
+#endif
     m_colorTransResiBuf[0].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
     m_colorTransResiBuf[1].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
     m_colorTransResiBuf[2].create(UnitArea(chromaFormatIdc, Area(0, 0, MAX_CU_SIZE, MAX_CU_SIZE)));
@@ -612,10 +616,11 @@ void InterPrediction::xPredInterBi(PredictionUnit &pu, PelUnitBuf &pcYuvPred, co
       else
       {
 #if BEZ_CURVE
-        if(pu.cu->geoFlag)
-          xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->geoFlag, bioApplied, luma, chroma);
-        else
-          xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->bezFlag, bioApplied, luma, chroma);
+        // if(pu.cu->geoFlag)
+        //   xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->geoFlag, bioApplied, luma, chroma);
+        // else
+        //   xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->bezFlag, bioApplied, luma, chroma);
+        xPredInterUni(pu,eRefPicList,pcMbBuf,pu.cu->bezFlag || pu.cu->geoFlag,bioApplied,luma,chroma);
 #else
         xPredInterUni(pu, eRefPicList, pcMbBuf, pu.cu->geoFlag, bioApplied, luma, chroma);
 #endif
@@ -1619,7 +1624,7 @@ void InterPrediction::motionCompensationBez(CodingUnit &cu, MergeCtx &bezMrgCtx)
       motionCompensation(pu, tmpBezBuf[i], REF_PIC_LIST_X, true, isChromaEnabled(pu.chromaFormat), nullptr, false);
       if (g_mctsDecCheckEnabled && !MCTSHelper::checkMvBufferForMCTSConstraint(pu, true))
       {
-        printf("DECODER_GEO_PU: pu motion vector across tile boundaries (%d,%d,%d,%d)\n", pu.lx(), pu.ly(), pu.lwidth(),
+        printf("DECODER_BEZ_PU: pu motion vector across tile boundaries (%d,%d,%d,%d)\n", pu.lx(), pu.ly(), pu.lwidth(),
                pu.lheight());
       }
     }

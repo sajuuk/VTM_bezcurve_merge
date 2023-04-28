@@ -199,6 +199,7 @@ namespace PU
   bool isLMCModeEnabled(const PredictionUnit &pu, unsigned mode);
   void getGeoMergeCandidates          (const PredictionUnit &pu, MergeCtx &GeoMrgCtx);
 #if BEZ_CURVE
+  void _debugOutputMask(uint8_t *bezMask,std::string fileName,int height ,int width);
   std::pair<double,double> getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis,int topIdx,int leftIdx);
   std::pair<double,double> calcBezPoint(int degree,const std::vector<std::pair<double,double>> &bezCtrlPts,double t);//计算特定参数的贝塞尔曲线点坐标
   void drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double,double>> &bezCtrlPts,uint8_t *bezMask);

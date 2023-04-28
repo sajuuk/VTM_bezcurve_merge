@@ -485,6 +485,13 @@ void storeGeoMergeCtx(MergeCtx geoMergeCtx)
   geoMergeCtxtsOfCurrentCtu.push(geoMergeCtx);
 }
 
+#if BEZ_CURVE
+std::queue<MergeCtx> bezMergeCtxtsOfCurrentCtu;
+void storeBezMergeCtx(MergeCtx bezMergeCtx)
+{
+  bezMergeCtxtsOfCurrentCtu.push(bezMergeCtx);
+}
+#endif
 void writeBlockStatisticsHeader(const SPS *sps)
 {
   static bool has_header_been_written = false;
@@ -611,6 +618,9 @@ void writeAllData(const CodingStructure& cs, const UnitArea& ctuArea)
                                     GetBlockStatisticName(BlockStatistic::Luma_IntraMode),
                                     pu.intraDir[ChannelType::LUMA]);
               }
+#if BEZ_CURVE
+              DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_ALL, pu, GetBlockStatisticName(BlockStatistic::BezFlag),  pu.bezFlag);
+#endif
             }
             DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_ALL, pu, GetBlockStatisticName(BlockStatistic::AffineFlag), pu.cu->affine);
             DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_ALL, pu,
@@ -885,6 +895,12 @@ void writeAllData(const CodingStructure& cs, const UnitArea& ctuArea)
             }
           }
 
+#if BEZ_CURVE
+          if(cu.bezFlag)
+          {
+            //WIP
+          }
+#endif
           DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_ALL, cu, GetBlockStatisticName(BlockStatistic::SMVDFlag), cu.smvdMode);
           DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_ALL, cu, GetBlockStatisticName(BlockStatistic::IMVMode), cu.imv);
           DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_ALL, cu, GetBlockStatisticName(BlockStatistic::RootCbf), cu.rootCbf);
@@ -1073,6 +1089,9 @@ void writeAllCodedData(const CodingStructure & cs, const UnitArea & ctuArea)
                                         pu.intraDir[ChannelType::CHROMA]);
                   }
                 }
+#if BEZ_CURVE
+                DTRACE_BLOCK_SCALAR(g_trace_ctx, D_BLOCK_STATISTICS_CODED, pu, GetBlockStatisticName(BlockStatistic::BezFlag), pu.bezFlag);
+#endif
               }
             }
             else

@@ -112,6 +112,9 @@ enum class BlockStatistic {
   MMVDMergeFlag,
   MMVDMergeIdx,
   CiipFlag,
+#if BEZ_CURVE
+  BezFlag,
+#endif
   SMVDFlag,
   GeoPartitioning,
   GeoMVL0, //<< currently only uni-prediction enabled
@@ -201,6 +204,9 @@ static const std::map<BlockStatistic, std::tuple<std::string, BlockStatisticType
   { BlockStatistic::MMVDMergeFlag,          std::tuple<std::string, BlockStatisticType, std::string>{"MMVDMergeFlag",               BlockStatisticType::Flag,                   ""}},
   { BlockStatistic::MMVDMergeIdx,           std::tuple<std::string, BlockStatisticType, std::string>{"MMVDMergeIdx",                BlockStatisticType::Integer,                "[0, 1]"}},
   { BlockStatistic::CiipFlag,            std::tuple<std::string, BlockStatisticType, std::string>{"CiipFlag",                 BlockStatisticType::Flag,                   ""}},
+#if BEZ_CURVE
+  { BlockStatistic::BezFlag,            std::tuple<std::string, BlockStatisticType, std::string>{"BezFlag",                 BlockStatisticType::Flag,                   ""}},
+#endif
   { BlockStatistic::SMVDFlag,               std::tuple<std::string, BlockStatisticType, std::string>{"SMVDFlag",                    BlockStatisticType::Flag,                   ""}},
   { BlockStatistic::GeoPartitioning,        std::tuple<std::string, BlockStatisticType, std::string>{"GeoPartitioning",             BlockStatisticType::Line,                   ""} },
   { BlockStatistic::GeoMVL0,                std::tuple<std::string, BlockStatisticType, std::string>{"GeoMVL0",                     BlockStatisticType::VectorPolygon,          "Scale: 4"} },
@@ -227,6 +233,9 @@ void writeAllData(const CodingStructure& cs, const UnitArea& ctuArea);
 void writeAllCodedData(const CodingStructure& cs, const UnitArea& ctuArea);
 class MergeCtx;
 void storeGeoMergeCtx(MergeCtx geoMergeCtx);
+#if BEZ_CURVE
+void storeBezMergeCtx(MergeCtx bezMergeCtx);
+#endif
 #endif
 
 #endif // _DTRACE_BLOCKSTATISTICS_H_

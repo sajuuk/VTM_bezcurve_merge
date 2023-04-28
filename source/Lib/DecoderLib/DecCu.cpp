@@ -136,6 +136,12 @@ void DecCu::decompressCtu( CodingStructure& cs, const UnitArea& ctuArea )
         {
           storeGeoMergeCtx(m_geoMrgCtx);
         }
+#if BEZ_CURVE
+        if(currCU.bezFlag)
+        {
+          storeBezMergeCtx(m_bezMrgCtx);
+        }
+#endif
 #endif
       }
       switch( currCU.predMode )
