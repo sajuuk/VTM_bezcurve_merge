@@ -132,6 +132,10 @@ void InterPrediction::destroy()
 
   m_geoPartBuf[0].destroy();
   m_geoPartBuf[1].destroy();
+#if BEZ_CURVE
+  m_bezPartBuf[0].destroy();
+  m_bezPartBuf[1].destroy();
+#endif
   m_colorTransResiBuf[0].destroy();
   m_colorTransResiBuf[1].destroy();
   m_colorTransResiBuf[2].destroy();
@@ -1609,7 +1613,7 @@ void InterPrediction::motionCompensationBez(CodingUnit &cu, MergeCtx &bezMrgCtx)
   const uint8_t leftIdx = cu.firstPU->bez3LeftIdx;
   for( auto &pu : CU::traversePUs( cu ) )
   {
-    const UnitArea localUnitArea(cu.cs->area.chromaFormat, Area(0, 0, pu.lwidth(), pu.lheight()));
+    const UnitArea localUnitArea(cu.cs->area.chromaFormat, Area(0, 0, pu.lwidth(),pu.lheight()));
 
     PelUnitBuf predBuf = cu.cs->getPredBuf(pu);
     PelUnitBuf tmpBezBuf[2];

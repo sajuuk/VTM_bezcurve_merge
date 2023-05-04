@@ -4332,8 +4332,8 @@ void PU::getGeoMergeCandidates( const PredictionUnit &pu, MergeCtx& geoMrgCtx )
 #if BEZ_CURVE
 std::pair<double,double> PU::getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis,int topIdx,int leftIdx)//计算给定的内部控制点坐标
 {
-  const int height = pu.Y().height;
-  const int width = pu.Y().width;
+  const int height = pu.lheight();
+  const int width = pu.lwidth();
   Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
   const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
   double k = - 1.0 * (leftIdx+1) / (topIdx+1);
@@ -4341,9 +4341,17 @@ std::pair<double,double> PU::getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis
   //double posX,posY;
   double y0 = 1.0 * midPoint.y - k * midPoint.x;
   double x0 = 1.0 * midPoint.x - midPoint.y / k;
+  if(y0 >= 0)
+  {
+    x0=0;
+  }
+  else
+  {
+    y0=0;
+  }
 
-  double x = x0 + dis * sin(theta);
-  double y = y0 + dis * cos(theta);
+  double x = x0 + dis * step * sin(theta);
+  double y = y0 + dis * step * cos(theta);
   return std::make_pair(x,y);
 }
 
@@ -4526,7 +4534,7 @@ std::pair<int,int> PU::getBezP3EdgePts(const PredictionUnit &pu,Pel *recoBuffer)
   }
   int leftIdx = getMaxDiffIdx(recoBuffer,height);
   //以上步骤获得边界像素导出结果
-  return std::make_pair(width/2,height/2);//debug bez
+  //return std::make_pair(width/2,height/2);//debug bez
   return std::make_pair(topIdx,leftIdx);
 }
 std::pair<double,double> PU::calcBezPoint(int degree,const std::vector<std::pair<double,double>> &bezCtrlPts,double t)
@@ -4558,8 +4566,8 @@ void PU::_debugOutputMask(uint8_t *bezMask,std::string fileName,int height ,int 
 }
 void PU::drawBezMask(const PredictionUnit &pu,const std::vector<std::pair<double,double>> &bezCtrlPts,uint8_t *bezMask)
 {
-  const int height = pu.Y().height;
-  const int width = pu.Y().width;
+  const int height = pu.lheight();
+  const int width = pu.lwidth();
   double totalsteps = 3 * std::max(height,width);
   memset(bezMask,1,sizeof(uint8_t) * MAX_CU_SIZE * MAX_CU_SIZE);
   for(double u=0;u<1.0;u+=1.0/totalsteps)
@@ -4614,6 +4622,7 @@ void PU::spanBezMotionInfo(PredictionUnit &pu, const MergeCtx &bezMrgCtx, const 
   pu.bez3TopIdx = topIdx;
   pu.bez3LeftIdx = leftIdx;
   MotionBuf mb = pu.getMotionBuf();
+  uint16_t sliceIdx = pu.cs->slice->getIndependentSliceIdx();
 
   // MotionInfo biMv;
   // biMv.isInter = true;
@@ -4663,7 +4672,7 @@ void PU::spanBezMotionInfo(PredictionUnit &pu, const MergeCtx &bezMrgCtx, const 
   {
     for(int x=0;x<mb.width;x++)
     {
-      if(bezMask[y*mb.width*4 + x*4]==0)
+      if(bezMask[y*4*MAX_CU_SIZE + x*4]==0)
       {
         mb.at(x, y).isInter = true;
         mb.at(x, y).interDir = bezMrgCtx.interDirNeighbours[candIdx0];
@@ -4671,7 +4680,7 @@ void PU::spanBezMotionInfo(PredictionUnit &pu, const MergeCtx &bezMrgCtx, const 
         mb.at(x, y).refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx0][1].refIdx;
         mb.at(x, y).mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx0][0].mv;
         mb.at(x, y).mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx0][1].mv;
-        mb.at(x, y).sliceIdx = pu.cs->slice->getIndependentSliceIdx();
+        mb.at(x, y).sliceIdx = sliceIdx;
       }
       else
       {
@@ -4681,7 +4690,7 @@ void PU::spanBezMotionInfo(PredictionUnit &pu, const MergeCtx &bezMrgCtx, const 
         mb.at(x, y).refIdx[1] = bezMrgCtx.mvFieldNeighbours[candIdx1][1].refIdx;
         mb.at(x, y).mv[0]     = bezMrgCtx.mvFieldNeighbours[candIdx1][0].mv;
         mb.at(x, y).mv[1]     = bezMrgCtx.mvFieldNeighbours[candIdx1][1].mv;
-        mb.at(x, y).sliceIdx = pu.cs->slice->getIndependentSliceIdx();
+        mb.at(x, y).sliceIdx = sliceIdx;
       }
     }
   }

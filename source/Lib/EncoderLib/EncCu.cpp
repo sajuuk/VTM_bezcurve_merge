@@ -475,12 +475,12 @@ bool EncCu::xCheckBestMode( CodingStructure *&tempCS, CodingStructure *&bestCS, 
       const CodingUnit& cu = *tempCS->cus.front();
       CHECK( cu.skip && !cu.firstPU->mergeFlag, "Skip flag without a merge flag is not allowed!" );
 #if BEZ_CURVE
-      if(cu.bezFlag && !cu.skip)//debug force bez
-      {
-        tempCS->cost=0;
-        tempCS->dist=0;
-        tempCS->fracBits=0;
-      }
+      // if(cu.bezFlag && !cu.skip)//debug force bez
+      // {
+      //   tempCS->cost=0;
+      //   tempCS->dist=0;
+      //   tempCS->fracBits=0;
+      // }
 #endif
     }
 
@@ -4463,8 +4463,9 @@ void EncCu::addBezCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& l
     auto dstBuf = mergeItem->getPredBuf(localUnitArea);
     generateMergePrediction(localUnitArea, mergeItem, *pu, true, false, dstBuf, false, false,
       bezBuffer[mergeIdxPair[0]], bezBuffer[mergeIdxPair[1]]);
-    //mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);
-    mergeItem->cost = 0;//debug force bez
+    mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);
+    //mergeItem->cost = 0;//debug force bez
+    printf("cost : %ld\n",mergeItem->cost);//debug bez check
     m_mergeItemList.insertMergeItemToList(mergeItem);
 
 
@@ -4805,16 +4806,15 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
   double k = - 1.0 * (leftIdx+1) / (topIdx+1);
   double theta = atan(k);
-  double posX,posY;
   double y0 = 1.0 * midPoint.y - k * midPoint.x;
   double x0 = 1.0 * midPoint.x - midPoint.y / k;
   if(y0 >= 0)
   {
-    posX=0;posY=y0;
+    x0=0;
   }
   else
   {
-    posX=x0;posY=0;
+    y0=0;
   }
   for (int bezMotionIdx = 0; bezMotionIdx < maxNumMergeCandidates * (maxNumMergeCandidates - 1); bezMotionIdx++)
   {
@@ -4834,12 +4834,12 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
 #endif
     for (uint8_t dis = 0; dis < BEZ_P3_NUM_DISTANCES; dis++)
     {
-      double deltaX, deltaY;
-      if(posX < width && posY < height)
+      //double deltaX, deltaY;
+      if(x0 + dis * step * sin(theta) < width && y0 + dis * step * cos(theta) < height)
       {
         comboList.list.push_back(BezMergeCombo(dis,std::make_pair(topIdx,leftIdx),mergeIdxPair,0));
-        posX += step*sin(theta);
-        posY += step*cos(theta);
+        //posX += step*sin(theta);
+        //posY += step*cos(theta);
       }
       else break;
     }
@@ -5512,10 +5512,10 @@ void EncCu::xCalDebCost( CodingStructure &cs, Partitioner &partitioner, bool cal
     distTmp = distTmp < 0 ? -distTmp : distTmp;
     cs.costDbOffset = sign * m_pcRdCost->calcRdCost( 0, distTmp );
 #if BEZ_CURVE
-    if(cu->bezFlag && !cu->skip)//debug force bez
-    {
-      cs.costDbOffset = 0;
-    }
+    // if(cu->bezFlag && !cu->skip)//debug force bez
+    // {
+    //   cs.costDbOffset = 0;
+    // }
 #endif
   }
 

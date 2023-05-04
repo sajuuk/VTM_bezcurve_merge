@@ -857,6 +857,9 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
   ptrdiff_t strideDst  = predDst.get(compIdx).stride - width;
   ptrdiff_t strideSrc0 = predSrc0.get(compIdx).stride - width;
   ptrdiff_t strideSrc1 = predSrc1.get(compIdx).stride - width;
+  // ptrdiff_t strideDst  = predDst.get(compIdx).stride;
+  // ptrdiff_t strideSrc0 = predSrc0.get(compIdx).stride;
+  // ptrdiff_t strideSrc1 = predSrc1.get(compIdx).stride;
   const ClpRng  clipRng = pu.cu->slice->clpRngs().comp[compIdx];
   const int32_t clipbd = clipRng.bd;
   const int32_t shiftWeighted = IF_INTERNAL_FRAC_BITS(clipbd);
@@ -868,7 +871,7 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
   {
     std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis, topIdx, leftIdx);
     PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
-    PU::_debugOutputMask(bezMask,std::to_string(height)+ "x" + std::to_string(width)+ "bezMask.yuv",height,width);//debug bez
+    //PU::_debugOutputMask(bezMask,std::to_string(height)+ "x" + std::to_string(width)+ "bezMask.yuv",height,width);//debug bez
   }
   else//yuv 420 only
   {
@@ -878,7 +881,7 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
     {
       for(int x=0;x<width;x++)
       {
-        bezMask[y * width + x] = bezMask[(y*2) * width + (x*2)];
+        bezMask[y * MAX_CU_SIZE + x] = bezMask[(y*2) * MAX_CU_SIZE + (x*2)];
       }
     }
   }
@@ -886,16 +889,22 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
   {
     for(int x=0;x<width;x++)
     {
-      if(bezMask[y * width + x] == 0)
+      CHECK(bezMask[y * MAX_CU_SIZE + x] != 0 && bezMask[y * MAX_CU_SIZE + x] != 1 ,"unexpected bezMask value");
+      if(bezMask[y * MAX_CU_SIZE + x] == 0)
       {
         //*dst++ = ClipPel( rightShift( (*src0++) + offsetWeighted, shiftWeighted),clipRng);
         *dst++ = ClipPel( rightShift_round( (*src0++) + IF_INTERNAL_OFFS, shiftWeighted),clipRng);
+        src1++;
       }
       else
       {
         //*dst++ = ClipPel( rightShift( (*src1++) + offsetWeighted, shiftWeighted),clipRng);
         *dst++ = ClipPel( rightShift_round( (*src1++) + IF_INTERNAL_OFFS, shiftWeighted),clipRng);
+        src0++;
       }
+      //dst++;
+      //src0++;
+      //src1++;
     }
     dst += strideDst;
     src0 += strideSrc0;

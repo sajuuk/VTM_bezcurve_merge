@@ -2658,11 +2658,11 @@ void CABACReader::bez_flag(PredictionUnit &pu)
     pu.bezFlag = false;
     return;
   }
-  if (pu.cu->skip)
-  {
-    pu.bezFlag = false;
-    return;
-  }
+  // if (pu.cu->skip)
+  // {
+  //   pu.bezFlag = false;
+  //   return;
+  // }
 
   RExt__DECODER_DEBUG_BIT_STATISTICS_CREATE_SET(STATS__CABAC_BITS__BEZ_FLAG);
 
