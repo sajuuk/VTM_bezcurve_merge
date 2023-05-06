@@ -807,7 +807,7 @@ const CtxSet ContextSetCfg::CiipFlag = ContextSetCfg::addCtxSet
   { CNU, },
   {   1, },
 });
-#if BEZ_CURVE
+#if BEZ_CURVE //Bez Flag所用的CABAC上下文模型
 const CtxSet ContextSetCfg::BezFlag = ContextSetCfg::addCtxSet
 ({
   {  59, },

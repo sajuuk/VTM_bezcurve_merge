@@ -74,7 +74,7 @@ const MergeIdxPair EncCu::m_bezModeTest[BEZ_MAX_NUM_CANDS] = {
   MergeIdxPair{ 3, 4 }, MergeIdxPair{ 4, 0 }, MergeIdxPair{ 4, 1 }, MergeIdxPair{ 4, 2 }, MergeIdxPair{ 4, 3 },
   MergeIdxPair{ 0, 5 }, MergeIdxPair{ 1, 5 }, MergeIdxPair{ 2, 5 }, MergeIdxPair{ 3, 5 }, MergeIdxPair{ 4, 5 },
   MergeIdxPair{ 5, 0 }, MergeIdxPair{ 5, 1 }, MergeIdxPair{ 5, 2 }, MergeIdxPair{ 5, 3 }, MergeIdxPair{ 5, 4 }
-};
+};//所有可能的cand index组合
 #endif
 
 EncCu::EncCu() {}
@@ -3438,12 +3438,12 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
 
   MergeCtx mergeCtx, gpmMergeCtx;
 #if BEZ_CURVE
-  MergeCtx bezMergeCtx;
+  MergeCtx bezMergeCtx;//存储merge cands的idx和mv等信息
 #endif
   AffineMergeCtx affineMergeCtx;
   GeoComboCostList &comboList = m_comboList;
 #if BEZ_CURVE
-  BezComboCostList &bezComboList = m_bezcomboList;
+  BezComboCostList &bezComboList = m_bezcomboList;//bez mode的所有可能merge cand组合列表
 #endif
   const SPS &sps = *tempCS->sps;
 
@@ -3476,7 +3476,7 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   PelUnitBufVector<MRG_MAX_NUM_CANDS> mrgPredBufNoMvRefine(m_pelUnitBufPool);
   PelUnitBufVector<MRG_MAX_NUM_CANDS> geoBuffer(m_pelUnitBufPool);
 #if BEZ_CURVE
-  PelUnitBufVector<MRG_MAX_NUM_CANDS> bezBuffer(m_pelUnitBufPool);
+  PelUnitBufVector<MRG_MAX_NUM_CANDS> bezBuffer(m_pelUnitBufPool);//用来存储运动补偿的buffer
 #endif
   static_vector<bool, MRG_MAX_NUM_CANDS> isRegularTestedAsSkip;
   // As CIIP may be reset to regular merge when no residuals, dmvrL0mvd cannot be put into mergeItem
@@ -3527,13 +3527,13 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   bool toAddBezCand = false;
   if (sps.getUseBezcurve() && pu->cs->slice->isInterB()
     && BEZ_MIN_CU_SIZE <= pu->lwidth() && pu->lwidth() <= BEZ_MAX_CU_SIZE && pu->lwidth() < 8 * pu->lheight()
-    && BEZ_MIN_CU_SIZE <= pu->lheight() && pu->lheight() <= BEZ_MAX_CU_SIZE && pu->lheight() < 8 * pu->lwidth() )
+    && BEZ_MIN_CU_SIZE <= pu->lheight() && pu->lheight() <= BEZ_MAX_CU_SIZE && pu->lheight() < 8 * pu->lwidth() )//满足bez模式的条件
     {
       pu->mergeFlag = true;
       pu->regularMergeFlag = false;
       pu->cu->bezFlag = true;
       pu->cu->geoFlag = false;
-      PU::getBezMergeCandidates(*pu,bezMergeCtx);
+      PU::getBezMergeCandidates(*pu,bezMergeCtx);//准备预选cand列表
       toAddBezCand = prepareBezComboList(bezMergeCtx,localUnitArea,sqrtLambdaForFirstPass,bezComboList,bezBuffer,pu);
       numMergeSatdCand += toAddBezCand ? std::min(m_pcEncCfg->getMergeRdCandQuotaBez(),(int)comboList.list.size()) : 0;
     }
@@ -3546,7 +3546,7 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   DistParam distParam;
   const bool bUseHadamard = !tempCS->slice->getDisableSATDForRD();
   // the third arguments to setDistParam is dummy and will be updated before being used
-  m_pcRdCost->setDistParam(distParam, tempCS->getOrgBuf().Y(), tempCS->getOrgBuf().Y(), sps.getBitDepth(ChannelType::LUMA), COMPONENT_Y, bUseHadamard);
+  m_pcRdCost->setDistParam(distParam, tempCS->getOrgBuf().Y(), tempCS->getOrgBuf().Y(), sps.getBitDepth(ChannelType::LUMA), COMPONENT_Y, bUseHadamard);//设置失真计算函数
 
   addRegularCandsToPruningList(mergeCtx, localUnitArea, sqrtLambdaForFirstPass, ctxStart, numDmvrMvd, dmvrL0Mvd, mrgPredBufNoCiip,
     mrgPredBufNoMvRefine, distParam, pu);
@@ -3642,7 +3642,7 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
         predBuf2 = geoBuffer[pu->geoMergeIdx[1]];
       }
 #if BEZ_CURVE
-      else if (mergeItem->mergeItemType == MergeItem::MergeItemType::BEZCURVE)
+      else if (mergeItem->mergeItemType == MergeItem::MergeItemType::BEZCURVE)//准备bez模式的两个预测块
       {
         predBuf1 = bezBuffer[pu->bezMergeIdx[0]];
         predBuf2 = bezBuffer[pu->bezMergeIdx[1]];
@@ -3707,7 +3707,7 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
         if (isSolid && isValid)
         {
           xEncodeInterResidual(tempCS, bestCS, partitioner, encTestMode, noResidualPass,
-            noResidualPass == 0 ? &mergeItem->noResidual : nullptr);
+            noResidualPass == 0 ? &mergeItem->noResidual : nullptr);//帧间残差熵编码
         }
       }
       else
@@ -3734,7 +3734,7 @@ void EncCu::xCheckRDCostUnifiedMerge(CodingStructure *&tempCS, CodingStructure *
   }
   if (m_bestModeUpdated && bestCS->cost != MAX_DOUBLE)
   {
-    xCalDebCost(*bestCS, partitioner);
+    xCalDebCost(*bestCS, partitioner);//计算去块效应率失真代价
   }
 }
 #endif
@@ -4194,7 +4194,7 @@ void EncCu::generateMergePrediction(const UnitArea& unitArea, MergeItem* mergeIt
       ? ChannelType::NUM : luma ? ChannelType::LUMA : ChannelType::CHROMA, dstBuf, *predBuf1, *predBuf2);
     break;
 #if BEZ_CURVE
-  case MergeItem::MergeItemType::BEZCURVE:
+  case MergeItem::MergeItemType::BEZCURVE://bez模式
     CHECK(predBuf1 == nullptr || predBuf2 == nullptr, "Invalid input buffer to BEZ");
     m_pcInterSearch->weightedBezBlk(pu, pu.bez3Dis,pu.bez3TopIdx,pu.bez3LeftIdx,luma && chroma 
       ? ChannelType::NUM : luma ? ChannelType::LUMA : ChannelType::CHROMA,dstBuf, *predBuf1, *predBuf2);
@@ -4456,16 +4456,16 @@ void EncCu::addBezCandsToPruningList(const MergeCtx& mergeCtx, const UnitArea& l
     const int disOffset = comboList.list[candidateIdx].disOffset;
     const std::pair<int,int> edgeOffst = comboList.list[candidateIdx].edgeOffset;
     const MergeIdxPair mergeIdxPair = comboList.list[candidateIdx].mergeIdx;
-    const int bezIndx = MergeItem::getBezUnfiedIndex(disOffset,edgeOffst.first,edgeOffst.second,mergeIdxPair);
+    const int bezIndx = MergeItem::getBezUnfiedIndex(disOffset,edgeOffst.first,edgeOffst.second,mergeIdxPair);//将模式信息编码到32bit中
 
     MergeItem* mergeItem = m_mergeItemList.allocateNewMergeItem();
-    mergeItem->importMergeInfo(mergeCtx,bezIndx,MergeItem::MergeItemType::BEZCURVE, *pu); 
+    mergeItem->importMergeInfo(mergeCtx,bezIndx,MergeItem::MergeItemType::BEZCURVE, *pu);//将模式信息写入pu中
     auto dstBuf = mergeItem->getPredBuf(localUnitArea);
     generateMergePrediction(localUnitArea, mergeItem, *pu, true, false, dstBuf, false, false,
-      bezBuffer[mergeIdxPair[0]], bezBuffer[mergeIdxPair[1]]);
-    mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);
+      bezBuffer[mergeIdxPair[0]], bezBuffer[mergeIdxPair[1]]);//根据pu的merge信息生成预测块存储到dstBuf中
+    mergeItem->cost = calcLumaCost4MergePrediction(ctxStart,dstBuf,sqrtLambdaForFirstPass, *pu, distParamSAD2);//计算率失真代价
     //mergeItem->cost = 0;//debug force bez
-    printf("cost : %ld\n",mergeItem->cost);//debug bez check
+    //printf("cost : %lf\n",mergeItem->cost);//debug bez check
     m_mergeItemList.insertMergeItemToList(mergeItem);
 
 
@@ -4748,7 +4748,7 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   // int leftIdx = getMaxDiffIdx(recoBuffer,height);
   // //以上步骤获得边界像素导出结果
   if(pu->Y().pos().x == 0 || pu->Y().pos().y == 0) return false;
-  std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*pu,m_bezDiffBuff);
+  std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*pu,m_bezDiffBuff);//从重建块导出topIdx和leftIdx
   int topIdx = edgeIdx.first;
   int leftIdx = edgeIdx.second;
   if(topIdx == -1 || leftIdx == -1) return false;
@@ -4767,7 +4767,7 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   {
     isSkipThisCand[i] = false;
   }
-  for (uint8_t mergeCand = 0; mergeCand < maxNumMergeCandidates; mergeCand++)
+  for (uint8_t mergeCand = 0; mergeCand < maxNumMergeCandidates; mergeCand++)//准备单个cand
   {
     bezBuffer.push_back(m_pelUnitBufPool.getPelUnitBuf(localUnitArea));
     mergeCtx.setMergeInfo(*pu, mergeCand);
@@ -4788,7 +4788,7 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
       }
     }
     PU::spanMotionInfo(*pu,mergeCtx);
-    m_pcInterSearch->motionCompensation(*pu,*bezBuffer[mergeCand],REF_PIC_LIST_X);
+    m_pcInterSearch->motionCompensation(*pu,*bezBuffer[mergeCand],REF_PIC_LIST_X);//运动补偿，将运动补偿结果写入buffer
   }
 
   bool allCandsAreSame = true;
@@ -4796,17 +4796,18 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   {
     allCandsAreSame &= isSkipThisCand[mergeCand];
   }
-  if (allCandsAreSame)
+  if (allCandsAreSame)//如果所有的cand都一样，则bez模式不可选
   {
     return false;
   }
 
   comboList.list.clear();
-  Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
+  Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);//计算中点
   const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
-  double k = - 1.0 * (leftIdx+1) / (topIdx+1);
-  double theta = atan(k);
-  double y0 = 1.0 * midPoint.y - k * midPoint.x;
+  //double k = - 1.0 * (leftIdx+1) / (topIdx+1);//计算中垂线的斜率
+  double k = 1.0 * (leftIdx+1) / (topIdx+1);//计算中垂线的斜率
+  double theta = atan(k);//计算中垂线角度
+  double y0 = 1.0 * midPoint.y - k * midPoint.x;//计算与x，y轴交点
   double x0 = 1.0 * midPoint.x - midPoint.y / k;
   if(y0 >= 0)
   {
@@ -4816,7 +4817,7 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
   {
     y0=0;
   }
-  for (int bezMotionIdx = 0; bezMotionIdx < maxNumMergeCandidates * (maxNumMergeCandidates - 1); bezMotionIdx++)
+  for (int bezMotionIdx = 0; bezMotionIdx < maxNumMergeCandidates * (maxNumMergeCandidates - 1); bezMotionIdx++)//枚举所有可能的cand组合
   {
     const MergeIdxPair mergeIdxPair = m_bezModeTest[bezMotionIdx];
 
@@ -4835,9 +4836,9 @@ bool EncCu::prepareBezComboList(const MergeCtx& mergeCtx, const UnitArea& localU
     for (uint8_t dis = 0; dis < BEZ_P3_NUM_DISTANCES; dis++)
     {
       //double deltaX, deltaY;
-      if(x0 + dis * step * sin(theta) < width && y0 + dis * step * cos(theta) < height)
+      if(x0 + dis * step * cos(theta) < width && y0 + dis * step * sin(theta) < height)//如果中心控制点超出CU范围，则跳过
       {
-        comboList.list.push_back(BezMergeCombo(dis,std::make_pair(topIdx,leftIdx),mergeIdxPair,0));
+        comboList.list.push_back(BezMergeCombo(dis,std::make_pair(topIdx,leftIdx),mergeIdxPair,0));//将所有可能的模式写入comboList
         //posX += step*sin(theta);
         //posY += step*cos(theta);
       }

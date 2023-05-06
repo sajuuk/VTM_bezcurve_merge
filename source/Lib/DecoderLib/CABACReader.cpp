@@ -2279,7 +2279,7 @@ void CABACReader::merge_data( PredictionUnit& pu )
                               && pu.cu->lheight() <= GEO_MAX_CU_SIZE && pu.cu->lwidth() < 8 * pu.cu->lheight()
                               && pu.cu->lheight() < 8 * pu.cu->lwidth();
 #if BEZ_CURVE
-    if (geoAvailable || ciipAvailable || geoAvailable)
+    if (geoAvailable || ciipAvailable || geoAvailable)//如果以三项有一项为真，则需要读flag进行区分
 #else
     if (geoAvailable || ciipAvailable)
 #endif
@@ -2310,14 +2310,14 @@ void CABACReader::merge_data( PredictionUnit& pu )
       pu.mmvdMergeFlag = false;
       pu.cu->mmvdSkip = false;
 #if BEZ_CURVE
-      if ((bezAvailable || geoAvailable) && ciipAvailable)
+      if ((bezAvailable || geoAvailable) && ciipAvailable)//有可能是ciip模式，并且bez和geo至少有一个有可能，就需要ciip_flag进行区分
       {
-        ciip_flag(pu);
+        ciip_flag(pu);//解码ciip flag
         if(bezAvailable && geoAvailable)
         {
-          bez_flag(pu);
+          bez_flag(pu);//如果bez和geo都有可能，那么解码bez flag
         }
-        else if(bezAvailable)
+        else if(bezAvailable)//否则，一定是bez模式
         {
           pu.bezFlag = true;
         }
@@ -2326,14 +2326,14 @@ void CABACReader::merge_data( PredictionUnit& pu )
       {
         pu.ciipFlag = true;
       }
-      else
+      else//这时不可能是ciip模式
       {
         pu.ciipFlag = false;
         if(bezAvailable && geoAvailable)
         {
-          bez_flag(pu);
+          bez_flag(pu);//如果bez和geo都有可能，那么解码bez flag
         }
-        else if(bezAvailable)
+        else if(bezAvailable)//否则，一定是bez模式
         {
           pu.bezFlag = true;
         }
@@ -2379,7 +2379,7 @@ void CABACReader::merge_data( PredictionUnit& pu )
         // {
         //   pu.cu->geoFlag = true;
         // }
-        if(pu.bezFlag)
+        if(pu.bezFlag)//根据bezflag的值来设置cu
         {
           pu.cu->bezFlag = true;
         }
@@ -2465,20 +2465,20 @@ void CABACReader::merge_idx( PredictionUnit& pu )
       return;
     }
 #if BEZ_CURVE
-    if (pu.cu->bezFlag)
+    if (pu.cu->bezFlag)//对于bez模式（三控制点），需要解码dis信息，以及merge候选信息
     {
       RExt__DECODER_DEBUG_BIT_STATISTICS_CREATE_SET(STATS__CABAC_BITS__BEZ_INDEX);
       uint32_t dis = 0;
-      xReadTruncBinCode(dis, BEZ_P3_NUM_DISTANCES);
+      xReadTruncBinCode(dis, BEZ_P3_NUM_DISTANCES);//从码流中读取dis
       pu.bez3Dis          = dis;
       const int maxNumBezCand = pu.cs->sps->getMaxNumBezcurveCand();
       CHECK(maxNumBezCand < 2, "Incorrect max number of bez candidates");
-      CHECK(pu.cu->lheight() > BEZ_MAX_CU_SIZE || pu.cu->lwidth() > BEZ_MAX_CU_SIZE, "Incorrect block size of geo flag");
+      CHECK(pu.cu->lheight() > BEZ_MAX_CU_SIZE || pu.cu->lwidth() > BEZ_MAX_CU_SIZE, "Incorrect block size of bez flag");
       int numCandminus2 = maxNumBezCand - 2;
       pu.mergeIdx       = 0;
       uint8_t mergeCand0 = 0;
       uint8_t mergeCand1 = 0;
-      if (m_binDecoder.decodeBin(Ctx::MergeIdx()))
+      if (m_binDecoder.decodeBin(Ctx::MergeIdx()))//读取merge candidx，因为merge candidx的编码方法与geo模式一样，因此具体编解码过程请查验标准
       {
         mergeCand0 += unary_max_eqprob(numCandminus2) + 1;
       }

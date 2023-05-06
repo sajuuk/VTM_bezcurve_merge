@@ -1894,7 +1894,7 @@ void CABACWriter::merge_data(const PredictionUnit& pu)
   if (geoAvailable || ciipAvailable)
 #endif
   {
-    m_binEncoder.encodeBin(pu.regularMergeFlag, Ctx::RegularMergeFlag(pu.cu->skip ? 0 : 1));
+    m_binEncoder.encodeBin(pu.regularMergeFlag, Ctx::RegularMergeFlag(pu.cu->skip ? 0 : 1));//ciip，bez和geo模式至少有一个可能被采用，则需要写入regularmerge flag来区分
   }
   if (pu.regularMergeFlag)
   {
@@ -1915,20 +1915,20 @@ void CABACWriter::merge_data(const PredictionUnit& pu)
   else
   {
 #if BEZ_CURVE
-    if((bezAvailable || geoAvailable) && ciipAvailable)
+    if((bezAvailable || geoAvailable) && ciipAvailable)//ciip可能被采用，且bez和geo至少有一个可能被采用
     {
       //此时需要写入flag区分
       ciip_flag(pu);
-      if(bezAvailable && geoAvailable)
+      if(bezAvailable && geoAvailable) //如果bez和geo都有可能，则需要写入bez flag区分
       {
         bez_flag(pu);
       }
     }
     else
     {
-      if(!ciipAvailable)
+      if(!ciipAvailable)//ciip不可能
       {
-        if(bezAvailable && geoAvailable)
+        if(bezAvailable && geoAvailable)//二者都有可能的情况下，才需要写入bez flag区分
         {
           bez_flag(pu);
         }
@@ -1942,7 +1942,7 @@ void CABACWriter::merge_data(const PredictionUnit& pu)
       ciip_flag(pu);
     }
 #endif
-    merge_idx(pu);
+    merge_idx(pu);//之后码流中写入merge index等其他信息
   }
 }
 
@@ -2080,14 +2080,14 @@ void CABACWriter::merge_idx( const PredictionUnit& pu )
       DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() bez3_dis=%d\n", dis );
       DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() bez3_idx0=%d\n", candIdx0 );
       DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() bez3_idx1=%d\n", candIdx1 );
-      xWriteTruncBinCode(dis,BEZ_P3_NUM_DISTANCES);
+      xWriteTruncBinCode(dis,BEZ_P3_NUM_DISTANCES);//将dis参数写入码流
       candIdx1 -= candIdx1 < candIdx0 ? 0 : 1;
       const int maxNumBezCand = pu.cs->sps->getMaxNumBezcurveCand();
       CHECK(maxNumBezCand < 2, "Incorrect max number of bez candidates");
       CHECK(candIdx0 >= maxNumBezCand, "Incorrect candIdx0");
       CHECK(candIdx1 >= maxNumBezCand, "Incorrect candIdx1");
       const int numCandminus2 = maxNumBezCand - 2;
-      m_binEncoder.encodeBin(candIdx0 == 0 ? 0 : 1, Ctx::MergeIdx());
+      m_binEncoder.encodeBin(candIdx0 == 0 ? 0 : 1, Ctx::MergeIdx());//之后向码流中写入cand idx数据，编码方法与geo模式相同，具体请参考标准
       if( candIdx0 > 0 )
       {
         unary_max_eqprob(candIdx0 - 1, numCandminus2);
@@ -2276,6 +2276,11 @@ void CABACWriter::ciip_flag(const PredictionUnit &pu)
          pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height);
 }
 #if BEZ_CURVE
+/**
+ * @description: 向码流中写入bez flag
+ * @param {PredictionUnit} &pu
+ * @return {*}
+ */
 void CABACWriter::bez_flag(const PredictionUnit &pu)
 {
   if (!pu.cs->sps->getUseBezcurve())

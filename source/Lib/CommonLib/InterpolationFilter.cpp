@@ -847,6 +847,10 @@ void InterpolationFilter::xWeightedGeoBlk(const PredictionUnit &pu, const uint32
 
 #if BEZ_CURVE
 #include "UnitTools.h"
+/**
+ * @description: 输入3控制点贝塞尔曲线模式参数以及参考块，生成预测块，（目前未加入高斯滤波）
+ * @return {*}
+ */
 void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_t width, const uint32_t height, const ComponentID compIdx, 
                     const uint8_t dis,const uint8_t topIdx,const uint8_t leftIdx, 
                     PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1)
@@ -871,7 +875,7 @@ void InterpolationFilter::weightedBezBlk(const PredictionUnit &pu, const uint32_
   {
     std::pair<double,double> ctrlPt = PU::getBezP3CtrlPt(pu, dis, topIdx, leftIdx);
     PU::drawBezMask(pu,std::vector<std::pair<double,double>> {std::make_pair(topIdx,-1),ctrlPt,std::make_pair(-1,leftIdx)},bezMask);
-    //PU::_debugOutputMask(bezMask,std::to_string(height)+ "x" + std::to_string(width)+ "bezMask.yuv",height,width);//debug bez
+    PU::_debugOutputMask(bezMask,std::to_string(height)+ "x" + std::to_string(width)+ "bezMask.yuv",height,width);//debug bez
   }
   else//yuv 420 only
   {

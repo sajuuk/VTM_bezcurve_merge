@@ -4330,18 +4330,27 @@ void PU::getGeoMergeCandidates( const PredictionUnit &pu, MergeCtx& geoMrgCtx )
   }
 }
 #if BEZ_CURVE
+/**
+ * @description: 对于3控制点贝塞尔曲线，输入中心偏移，上方控制点横坐标，左方控制点纵坐标来确定内部控制点坐标
+ * @param {PredictionUnit} &pu
+ * @param {uint8_t} dis
+ * @param {int} topIdx
+ * @param {int} leftIdx
+ * @return {*}
+ */
 std::pair<double,double> PU::getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis,int topIdx,int leftIdx)//计算给定的内部控制点坐标
 {
   const int height = pu.lheight();
   const int width = pu.lwidth();
   Position midPoint((topIdx - 1) / 2,(leftIdx - 1) / 2);
   const double step = sqrt((height * height ) + (width *width)) / (1<<BEZ_P3_LOG2_NUM_DISTANCES);//距离步长
-  double k = - 1.0 * (leftIdx+1) / (topIdx+1);
-  double theta = atan(k);
+  //double k = - 1.0 * (leftIdx+1) / (topIdx+1);
+  double k = 1.0 * (leftIdx+1) / (topIdx+1);
+  double theta = atan(k);//计算中垂线的角度
   //double posX,posY;
-  double y0 = 1.0 * midPoint.y - k * midPoint.x;
+  double y0 = 1.0 * midPoint.y - k * midPoint.x;//计算中垂线与x,y轴的交点
   double x0 = 1.0 * midPoint.x - midPoint.y / k;
-  if(y0 >= 0)
+  if(y0 >= 0)//对交点进行判断，选出对边界的交点
   {
     x0=0;
   }
@@ -4350,9 +4359,9 @@ std::pair<double,double> PU::getBezP3CtrlPt(const PredictionUnit &pu,uint8_t dis
     y0=0;
   }
 
-  double x = x0 + dis * step * sin(theta);
-  double y = y0 + dis * step * cos(theta);
-  return std::make_pair(x,y);
+  double x = x0 + dis * step * cos(theta);
+  double y = y0 + dis * step * sin(theta);
+  return std::make_pair(x,y);//输出内部点坐标
 }
 
 void PU::getBezMergeCandidates(const PredictionUnit &pu, MergeCtx &bezMrgCtx)

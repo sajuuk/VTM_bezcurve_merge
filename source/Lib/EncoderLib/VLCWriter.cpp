@@ -1134,7 +1134,7 @@ void HLSWriter::codeSPS( const SPS* pcSPS )
       }
     }
 #if BEZ_CURVE
-    xWriteFlag(pcSPS->getUseBezcurve() ? 1 : 0, "sps_bez_enabled_flag");
+    xWriteFlag(pcSPS->getUseBezcurve() ? 1 : 0, "sps_bez_enabled_flag");//将sps_bez_enabled_flag写入sps
     if (pcSPS->getUseBezcurve())
     {
       CHECK(pcSPS->getMaxNumMergeCand() < pcSPS->getMaxNumBezcurveCand(),
@@ -1144,7 +1144,7 @@ void HLSWriter::codeSPS( const SPS* pcSPS )
       if (pcSPS->getMaxNumMergeCand() >= 3)
       {
         xWriteUvlc(pcSPS->getMaxNumMergeCand() - pcSPS->getMaxNumBezcurveCand(),
-                   "sps_max_num_merge_cand_minus_max_num_bez_cand");
+                   "sps_max_num_merge_cand_minus_max_num_bez_cand");//将sps_max_num_merge_cand_minus_max_num_bez_cand写入sps
       }
     }
 #endif

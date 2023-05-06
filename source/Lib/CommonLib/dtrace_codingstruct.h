@@ -106,7 +106,7 @@ inline void dtraceModeCost(CodingStructure &cs, double lambda)
     intraModeC = 68;
   int imvVal = 0;
   imvVal = cs.cus[0]->imv;
-#if BEZ_CURVE
+#if BEZ_CURVE //DTRACE输出项，加入BezFlag以分析模式
   DTRACE( g_trace_ctx, D_MODE_COST, "ModeCost: %6lld %3d @(%4d,%4d) [%2dx%2d] %d (qp%d,pm%d,skip%d,mrg%d,bez%d,fruc%d,obmc%d,ic%d,imv%d,affn%d,%d,%d) tempCS = %lld (%d,%d)\n",
     DTRACE_GET_COUNTER( g_trace_ctx, D_MODE_COST ),
     cs.slice->getPOC(),

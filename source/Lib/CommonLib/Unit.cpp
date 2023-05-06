@@ -293,7 +293,7 @@ CodingUnit& CodingUnit::operator=( const CodingUnit& other )
   affineType        = other.affineType;
   colorTransform = other.colorTransform;
   geoFlag           = other.geoFlag;
-#if BEZ_CURVE
+#if BEZ_CURVE//重载CU的=运算符
   bezFlag           = other.bezFlag;
 #endif
   bdpcmMode         = other.bdpcmMode;
@@ -357,7 +357,7 @@ void CodingUnit::initData()
   affineType        = AffineModel::_4_PARAMS;
   colorTransform = false;
   geoFlag           = false;
-#if BEZ_CURVE
+#if BEZ_CURVE//重载CU初始化
   bezFlag           = false;
 #endif
   bdpcmMode         = BdpcmMode::NONE;
@@ -607,7 +607,7 @@ void PredictionUnit::initData()
     }
   }
   ciipFlag = false;
-#if BEZ_CURVE
+#if BEZ_CURVE//初始化PU
   bez3Dis = MAX_UCHAR;
   bez3LeftIdx = MAX_UCHAR;
   bez3TopIdx = MAX_UCHAR;
@@ -640,7 +640,7 @@ PredictionUnit& PredictionUnit::operator=(const InterPredictionData& predData)
   bv               = predData.bv;
   bvd              = predData.bvd;
   ciipFlag         = predData.ciipFlag;
-#if BEZ_CURVE
+#if BEZ_CURVE//重载PU=运算符
   bez3Dis          = predData.bez3Dis;
   bez3LeftIdx      = predData.bez3LeftIdx;
   bez3TopIdx       = predData.bez3TopIdx;
@@ -691,7 +691,7 @@ PredictionUnit& PredictionUnit::operator=( const PredictionUnit& other )
   bv               = other.bv;
   bvd              = other.bvd;
   ciipFlag         = other.ciipFlag;
-#if BEZ_CURVE
+#if BEZ_CURVE//重载PU=运算符
   bez3Dis          = other.bez3Dis;
   bez3LeftIdx      = other.bez3LeftIdx;
   bez3TopIdx       = other.bez3TopIdx;

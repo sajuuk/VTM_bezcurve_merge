@@ -1606,11 +1606,17 @@ void InterPrediction::weightedGeoBlk(PredictionUnit &pu, const uint8_t splitDir,
 }
 
 #if BEZ_CURVE
+/**
+ * @description: 贝塞尔曲线模式的运动补偿，解码端使用
+ * @param {CodingUnit} &cu，解码后的cu
+ * @param {MergeCtx} &bezMrgCtx
+ * @return {*}
+ */
 void InterPrediction::motionCompensationBez(CodingUnit &cu, MergeCtx &bezMrgCtx)
 {
   const uint8_t dis = cu.firstPU->bez3Dis;
   const uint8_t topIdx = cu.firstPU->bez3TopIdx;
-  const uint8_t leftIdx = cu.firstPU->bez3LeftIdx;
+  const uint8_t leftIdx = cu.firstPU->bez3LeftIdx;//获取三个参数，用于生成预测快
   for( auto &pu : CU::traversePUs( cu ) )
   {
     const UnitArea localUnitArea(cu.cs->area.chromaFormat, Area(0, 0, pu.lwidth(),pu.lheight()));
@@ -1618,7 +1624,7 @@ void InterPrediction::motionCompensationBez(CodingUnit &cu, MergeCtx &bezMrgCtx)
     PelUnitBuf predBuf = cu.cs->getPredBuf(pu);
     PelUnitBuf tmpBezBuf[2];
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)//准备两个预测块
     {
       tmpBezBuf[i] = m_bezPartBuf[i].getBuf(localUnitArea);
 
@@ -1640,6 +1646,10 @@ void InterPrediction::motionCompensationBez(CodingUnit &cu, MergeCtx &bezMrgCtx)
     }
   }
 }
+/**
+ * @description: 分别根据所在通道（Y，Cb，Cr）生成预测块
+ * @return {*}
+ */
 void InterPrediction::weightedBezBlk(PredictionUnit &pu,const uint8_t dis,const uint8_t topIdx,const uint8_t leftIdx,ChannelType channel,
                          PelUnitBuf &predDst,PelUnitBuf &predSrc0, PelUnitBuf &predSrc1)
 {
@@ -2353,7 +2363,7 @@ void MergeCtx::setMergeInfo( PredictionUnit& pu, int candIdx )
 #endif
 {
   CHECK( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
-#if BEZ_CURVE
+#if BEZ_CURVE //对merge模式，统一根据candidate的index设置pu的mv
   pu.regularMergeFlag        = !(pu.ciipFlag || pu.cu->geoFlag || pu.cu->bezFlag);
 #else
   pu.regularMergeFlag        = !(pu.ciipFlag || pu.cu->geoFlag);

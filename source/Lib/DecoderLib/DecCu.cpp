@@ -136,7 +136,7 @@ void DecCu::decompressCtu( CodingStructure& cs, const UnitArea& ctuArea )
         {
           storeGeoMergeCtx(m_geoMrgCtx);
         }
-#if BEZ_CURVE
+#if BEZ_CURVE//DTRACE调试用
         if(currCU.bezFlag)
         {
           storeBezMergeCtx(m_bezMrgCtx);
@@ -617,12 +617,12 @@ void DecCu::xReconInter(CodingUnit &cu)
 #if BEZ_CURVE
   else if( cu.bezFlag )
   {
-    std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*cu.firstPU,m_bezDiffBuff);
+    std::pair<int,int> edgeIdx = PU::getBezP3EdgePts(*cu.firstPU,m_bezDiffBuff);//根据重建图像推导出两个edgeIdx
     CHECK(edgeIdx.first == -1 || edgeIdx.second == -1,"bez edge idx cannot be -1");
     cu.firstPU->bez3TopIdx = edgeIdx.first;
     cu.firstPU->bez3LeftIdx = edgeIdx.second;
-    m_pcInterPred->motionCompensationBez(cu,m_bezMrgCtx);
-    PU::spanBezMotionInfo(*cu.firstPU,m_bezMrgCtx, cu.firstPU->bez3Dis,cu.firstPU->bez3TopIdx,cu.firstPU->bez3LeftIdx,cu.firstPU->bezMergeIdx);
+    m_pcInterPred->motionCompensationBez(cu,m_bezMrgCtx);//运动补偿
+    PU::spanBezMotionInfo(*cu.firstPU,m_bezMrgCtx, cu.firstPU->bez3Dis,cu.firstPU->bez3TopIdx,cu.firstPU->bez3LeftIdx,cu.firstPU->bezMergeIdx);//将mv信息写入motion buf
   }
 #endif
   else
@@ -633,6 +633,9 @@ void DecCu::xReconInter(CodingUnit &cu)
     CHECK(CU::isIBC(cu) && cu.firstPU->ciipFlag, "IBC and Ciip cannot be used together");
     CHECK(CU::isIBC(cu) && cu.affine, "IBC and Affine cannot be used together");
     CHECK(CU::isIBC(cu) && cu.geoFlag, "IBC and geo cannot be used together");
+#if BEZ_CURVE
+    CHECK(CU::isIBC(cu) && cu.bezFlag, "IBC and bez cannot be used together");
+#endif
     CHECK(CU::isIBC(cu) && cu.firstPU->mmvdMergeFlag, "IBC and MMVD cannot be used together");
     const bool luma   = cu.Y().valid();
     const bool chroma = isChromaEnabled(cu.chromaFormat) && cu.Cb().valid();

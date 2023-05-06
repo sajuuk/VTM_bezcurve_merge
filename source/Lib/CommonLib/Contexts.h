@@ -263,7 +263,7 @@ public:
   static const CtxSet   alfUseApsFlag;
   static const CtxSet   CcAlfFilterControlFlag;
   static const CtxSet   CiipFlag;
-#if BEZ_CURVE
+#if BEZ_CURVE //声明BezFlag的CABAC上下文模型
   static const CtxSet   BezFlag;
 #endif
   static const CtxSet   SmvdFlag;

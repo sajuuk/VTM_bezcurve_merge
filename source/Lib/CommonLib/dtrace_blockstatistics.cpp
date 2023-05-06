@@ -485,7 +485,7 @@ void storeGeoMergeCtx(MergeCtx geoMergeCtx)
   geoMergeCtxtsOfCurrentCtu.push(geoMergeCtx);
 }
 
-#if BEZ_CURVE
+#if BEZ_CURVE//DTRACE所用的队列，调试用，暂时没用
 std::queue<MergeCtx> bezMergeCtxtsOfCurrentCtu;
 void storeBezMergeCtx(MergeCtx bezMergeCtx)
 {

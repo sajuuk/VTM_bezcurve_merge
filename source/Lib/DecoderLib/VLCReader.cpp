@@ -1909,13 +1909,13 @@ void HLSyntaxReader::parseSPS(SPS* pcSPS)
       }
     }
 #if BEZ_CURVE
-    xReadFlag(uiCode, "sps_bez_enabled_flag");
+    xReadFlag(uiCode, "sps_bez_enabled_flag");//sps参数，sps_bez_enabled_flag，决定是否开启bez模式
     pcSPS->setUseBezcurve(uiCode != 0);
     if (pcSPS->getUseBezcurve())
     {
       if (pcSPS->getMaxNumMergeCand() >= 3)
       {
-        xReadUvlc(uiCode, "sps_max_num_merge_cand_minus_max_num_bez_cand");
+        xReadUvlc(uiCode, "sps_max_num_merge_cand_minus_max_num_bez_cand");//sps参数sps_max_num_merge_cand_minus_max_num_bez_cand，决定最大bez cand的数量
         CHECK(pcSPS->getMaxNumMergeCand() - 2 < uiCode,
               "sps_max_num_merge_cand_minus_max_num_bez_cand must not be greater than the number of merge candidates minus 2");
         pcSPS->setMaxNumBezcurveCand((uint32_t)(pcSPS->getMaxNumMergeCand() - uiCode));

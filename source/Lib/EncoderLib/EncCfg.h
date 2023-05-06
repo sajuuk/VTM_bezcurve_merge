@@ -363,7 +363,7 @@ protected:
   bool      m_ciip;
   bool      m_Geo;
 #if BEZ_CURVE
-  bool      m_Bezcurve;
+  bool      m_Bezcurve;//是否启用bez mode
 #endif
   bool      m_allowDisFracMMVD;
   bool      m_AffineAmvr;

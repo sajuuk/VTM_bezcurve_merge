@@ -418,7 +418,7 @@ void EncApp::xInitLibCfg( int layerIdx )
 
     m_cEncLib.setNoGeoConstraintFlag(m_noGeoConstraintFlag);
     CHECK(m_noGeoConstraintFlag && m_Geo, "GEO shall be deactivated when m_noGeoConstraintFlag is equal to 1");
-  #if BEZ_CURVE
+  #if BEZ_CURVE//设置setNoBezcurveConstraintFlag
     m_cEncLib.setNoBezcurveConstraintFlag(m_noBezCurveConstraintFlag);
     CHECK(m_noBezCurveConstraintFlag && m_Bezcurve, "Bezcurve shall be deactivated when m_noBezCurveConstraintFlag is equal to 1");
   #endif
